@@ -396,7 +396,6 @@ class LAMMPSInputHandler:
                     + "\n".join(self.mace_dump_0)
                     + "\n"
                 )
-
                 # To do independent rerun, we need a restart file written before run,
                 # as the simulation may break before writing it
                 if run_index < (rest_index := match_rest.start()):
