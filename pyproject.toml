@@ -21,8 +21,8 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/arcann-chem/arcann_training"
-Documentation = "https://arcann-chem.github.io/arcann_training/"
+Repository = "https://github.com/champagnn/arcann_training"
+Documentation = "https://champagnn.github.io/arcann_training/"
 
 [project.optional-dependencies]
 mace = [
@@ -44,6 +44,12 @@ arcann = "arcann_training.__main__:main"
 dev = [
     "pre-commit>=4.2.0",
     "ruff>=0.11.13",
+]
+docs = [
+    "mkdocs>=1.6.1,<2.0.0",
+    "mkdocs-awesome-pages-plugin>=2.10.1",
+    "mkdocs-markdownextradata-plugin>=0.2.6",
+    "mkdocs-material>=9.7.7",
 ]
 
 [tool.uv.sources]
