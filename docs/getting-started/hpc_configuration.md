@@ -1,7 +1,7 @@
 # HPC Configuration
 
 ArcaNN is designed for use on one or several HPC machines, whose specific configurations must be specified by the user through a `machine.json` file.
-A general example file can be found in the [GitHub Repository](https://github.com/TheoreticalChemistryGroupENS/arcann_training/blob/main/examples/user_files/machine.json).
+A general example file can be found in the [GitHub Repository](https://github.com/champagnn/arcann_training/blob/main/examples/user_files/machine.json).
 You should modify this file to suit your setup and then copy it to the `user_files/` folder in your working directory (see later in [Usage](../usage/iter_prerequisites.md)).
 
 ## Structure of the `machine.json` File

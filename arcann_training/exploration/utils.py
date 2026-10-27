@@ -849,7 +849,7 @@ def create_models_list(
                         )
                 case _:
                     raise ValueError(
-                        "If this was raised open an Issue on GitHub (https://github.com/arcann-chem/arcann_training)"
+                        "If this was raised open an Issue on GitHub (https://github.com/champagnn/arcann_training)"
                     )
             models_list.append(model_path.name + md_ext)
     else:

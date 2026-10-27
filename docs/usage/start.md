@@ -2,7 +2,7 @@
 
 ## Iterations, Steps and Phases of the Iterative Procedure
 
-At this stage, ArcaNN is installed in your machine, and you have made the necessary changes to adapt it (see [HPC Configuration](../getting-started/hpc_configuration.md)). As in the [GitHub Repository](https://github.com/TheoreticalChemistryGroupENS/arcann_training/), you can now find in the location where you installed ArcaNN, an `arcann_training/` folder containing several files, as well as the `arcann_training/` scripts, a `tools/` directory and a `examples/` directory.
+At this stage, ArcaNN is installed in your machine, and you have made the necessary changes to adapt it (see [HPC Configuration](../getting-started/hpc_configuration.md)). As in the [GitHub Repository](https://github.com/champagnn/arcann_training/), you can now find in the location where you installed ArcaNN, an `arcann_training/` folder containing several files, as well as the `arcann_training/` scripts, a `tools/` directory and a `examples/` directory.
 
 To start the procedure, create an empty directory anywhere you like that will be your iterative training working directory.
 We will refer to this directory by the variable name `$WORK_DIR`.

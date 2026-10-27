@@ -6,7 +6,7 @@ ArcaNN is a standard Python package: its dependencies (`ase`, `numpy`, `pyyaml`,
 
 - **Clone or Download the Repository:**
 
-Use the green `Code` button on the [repository](https://github.com/TheoreticalChemistryGroupENS/arcann_training)'s main page to either clone or download the repository.
+Use the green `Code` button on the [repository](https://github.com/champagnn/arcann_training)'s main page to either clone or download the repository.
 While it's recommended to keep a local copy of this repository on any computer that will be used for preparing, running, or analyzing the iterative training process, this is not mandatory.
 
 - **Navigate to the Repository Folder:**

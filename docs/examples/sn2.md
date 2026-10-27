@@ -1,6 +1,6 @@
 # SN2
 
-Here we introduce the basic usage of the ArcaNN software, illustrated by a SN2 reaction. All the files are available in the [GitHub Repository](https://github.com/TheoreticalChemistryGroupENS/arcann_training/); and after ArcaNN installation, you will find them at `examples/sn2_ch3cl_br/` inside your local `arcann_training` directory.
+Here we introduce the basic usage of the ArcaNN software, illustrated by a SN2 reaction. All the files are available in the [GitHub Repository](https://github.com/champagnn/arcann_training/); and after ArcaNN installation, you will find them at `examples/sn2_ch3cl_br/` inside your local `arcann_training` directory.
 
 The iterative training and dataset generation for the SN2 reaction, comprised two iterative trainings: a first non-reactive training was performed on reactant and products structures, followed by a reactive training where transition structures were generated.
 

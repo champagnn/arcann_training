@@ -15,7 +15,7 @@ If you only need to inject already-labeled data under a new system name into tra
 
 To initiate the iterative training procedure, you should create in your `$WORK_DIR` two folders: `user_files/` and `data/`.
 
-In `user_files/` you will store all the files needed for each step. You can find some templates to start with in the [GitHub Repository](https://github.com/TheoreticalChemistryGroupENS/arcann_training), now available in your machine at your ArcaNN installation location `arcann_training/examples/user_files/`.
+In `user_files/` you will store all the files needed for each step. You can find some templates to start with in the [GitHub Repository](https://github.com/champagnn/arcann_training), now available in your machine at your ArcaNN installation location `arcann_training/examples/user_files/`.
 
 - For the exploration step, you must adapt the template files found in `exploration_lammps/` or `exploration_sander_emle/` depending of your choice. You will need the following files:
     - The input files: `SYSTEM.in` for LAMMPS.

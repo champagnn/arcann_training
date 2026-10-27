@@ -4,12 +4,12 @@
 
 ---
 
-[![GNU AGPL v3.0 License](https://img.shields.io/github/license/TheoreticalChemistryGroupENS/arcann_training.svg)](https://github.com/TheoreticalChemistryGroupENS/arcann_training/blob/main/LICENSE)
+[![GNU AGPL v3.0 License](https://img.shields.io/github/license/champagnn/arcann_training.svg)](https://github.com/champagnn/arcann_training/blob/main/LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2FD4DD00209A-004976.svg)](https://doi.org/10.1039/D4DD00209A)
 [![DOI](https://img.shields.io/badge/DOI-10.48550%2FarXiv.2407.07751-b31b1b.svg)](https://doi.org/10.48550/arXiv.2407.07751)
 
-[![Unit Tests](https://github.com/TheoreticalChemistryGroupENS/arcann_training/actions/workflows/unittests_matrix.yml/badge.svg?branch=main)](https://github.com/TheoreticalChemistryGroupENS/arcann_training/actions/workflows/unittests_matrix.yml)
-[![Docs](https://github.com/TheoreticalChemistryGroupENS/arcann_training/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/TheoreticalChemistryGroupENS/arcann_training/actions/workflows/docs.yml)
+[![Unit Tests](https://github.com/champagnn/arcann_training/actions/workflows/unittests_matrix.yml/badge.svg?branch=main)](https://github.com/champagnn/arcann_training/actions/workflows/unittests_matrix.yml)
+[![Docs](https://github.com/champagnn/arcann_training/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/champagnn/arcann_training/actions/workflows/docs.yml)
 
 ---
 
@@ -53,7 +53,7 @@ Ensure you understand the meaning of each step before using the code.
 
 ## GitHub Repository Structure
 
-You will find in our [GitHub repository](https://github.com/TheoreticalChemistryGroupENS/arcann_training) everything you need to set up the ArcaNN software, as well as example files that you can use as an example. The repository contains several folders:
+You will find in our [GitHub repository](https://github.com/champagnn/arcann_training) everything you need to set up the ArcaNN software, as well as example files that you can use as an example. The repository contains several folders:
 
 - The `tools/` folder contains helper scripts and files.
 - The `arcann_training/` folder contains the `ArcaNN Training` code. **We strongly advise against modifying its contents**. See [ArcaNN Installation Guide](getting-started/installation.md) for the installation.

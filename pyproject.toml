@@ -21,8 +21,8 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/arcann-chem/arcann_training"
-Documentation = "https://arcann-chem.github.io/arcann_training/"
+Repository = "https://github.com/champagnn/arcann_training"
+Documentation = "https://champagnn.github.io/arcann_training/"
 
 [project.optional-dependencies]
 mace = [
