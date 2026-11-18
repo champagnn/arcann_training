@@ -75,6 +75,14 @@ def generate_input_labeling_json(
     valid_labeling_program = ["cp2k", "orca"]
 
     previous_input_json = convert_control_to_input(previous_json, main_json)
+    # The control JSON stores the per-system charge/total_spin as 'charge'/'total_spin'
+    # (see labeling/prepare.py), map them back to their input key names so they carry over
+    for control_key, input_key in [
+        ("charge", "systems_charge"),
+        ("total_spin", "systems_total_spin"),
+    ]:
+        if control_key in previous_input_json:
+            previous_input_json[input_key] = previous_input_json.pop(control_key)
 
     for key in [
         "labeling_program",

@@ -92,6 +92,44 @@ class TestGenerateInputLabelingJsonPolarMace(unittest.TestCase):
                 main_json=self.main_json,
             )
 
+    def test_previous_iteration_values_carry_over(self):
+        # The control JSON written by labeling/prepare.py stores 'charge'/'total_spin' per system
+        previous_json = {
+            "labeling_program": "cp2k",
+            "systems_auto": {
+                "system1": {"charge": -1, "total_spin": 2},
+                "system2": {"charge": 1, "total_spin": 3},
+            },
+        }
+        merged_input_json = generate_input_labeling_json(
+            user_input_json={},
+            previous_json=previous_json,
+            default_input_json=DEFAULT_INPUT_JSON,
+            merged_input_json={},
+            main_json=self.main_json,
+        )
+        self.assertEqual(merged_input_json["systems_charge"], [-1, 1])
+        self.assertEqual(merged_input_json["systems_total_spin"], [2, 3])
+
+    def test_previous_iteration_without_charge_uses_default(self):
+        # Control JSON from before PolarMACE support: no 'charge'/'total_spin' stored
+        previous_json = {
+            "labeling_program": "cp2k",
+            "systems_auto": {
+                "system1": {"nb_nodes": 1},
+                "system2": {"nb_nodes": 1},
+            },
+        }
+        merged_input_json = generate_input_labeling_json(
+            user_input_json={},
+            previous_json=previous_json,
+            default_input_json=DEFAULT_INPUT_JSON,
+            merged_input_json={},
+            main_json=self.main_json,
+        )
+        self.assertEqual(merged_input_json["systems_charge"], [0, 0])
+        self.assertEqual(merged_input_json["systems_total_spin"], [1, 1])
+
 
 class TestGetSystemLabelingPolarMace(unittest.TestCase):
     """
