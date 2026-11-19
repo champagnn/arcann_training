@@ -1,4 +1,5 @@
 site_name: ArcanNN - Training
+site_url: https://champagnn.github.io/arcann_training/
 repo_url: https://github.com/champagnn/arcann_training
 repo_name: champagnn/arcann_training
 plugins:
@@ -22,3 +23,9 @@ theme:
               name: Switch to light mode
 extra_css:
     - stylesheets/extra.css
+extra:
+    version:
+        # Version selector, populated by mike (versions.json on gh-pages)
+        provider: mike
+        default: latest
+        alias: true
