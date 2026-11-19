@@ -1,0 +1,69 @@
+<!doctype html>
+<!--
+  Root 404 page of the versioned docs site (copied to the gh-pages root by
+  .github/workflows/docs.yml). GitHub Pages serves it for every missing path.
+
+  Paths outside any version, e.g. old unversioned links such as
+  /arcann_training/usage/training/, are redirected to the same page under
+  latest/. Paths inside a version, alias or PR preview are real 404s and show
+  the message below (prevents redirect loops).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Page not found</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; line-height: 1.5; }
+    #nf { display: none; }
+    .nf #nf { display: block; }
+  </style>
+  <script>
+    (function () {
+      var parts = location.pathname.split("/");   // ["", "<repo>", first, ...]
+      var base = "/" + parts[1] + "/";
+      var first = parts[2] || "";
+      var rest = parts.slice(2).join("/");
+      function show() {
+        document.documentElement.className = "nf";
+        var a = document.getElementById("home");
+        if (a) a.href = base;
+      }
+      function notFound() {
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", show);
+        } else {
+          show();
+        }
+      }
+      // An empty repo segment would make base "//", a protocol-relative URL.
+      if (!parts[1]) return notFound();
+      fetch(base + "versions.json")
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .catch(function () { return []; })
+        .then(function (versions) {
+          // "latest" is always reserved, so a failed fetch cannot loop.
+          var reserved = ["latest", "pr-preview"];
+          versions.forEach(function (v) {
+            reserved.push(v.version);
+            reserved.push.apply(reserved, v.aliases || []);
+          });
+          if (!first || reserved.indexOf(first) !== -1) return notFound();
+          // Only ever redirect within this site (no open redirect).
+          var target = new URL(base + "latest/" + rest + location.search + location.hash, location.origin);
+          if (target.origin !== location.origin) return notFound();
+          location.replace(target.href);
+        });
+    })();
+  </script>
+</head>
+<body>
+  <div id="nf">
+    <h1>Page not found</h1>
+    <p>This page does not exist in this version of the documentation.</p>
+    <p><a id="home" href="/">Go to the documentation home</a></p>
+  </div>
+</body>
+</html>

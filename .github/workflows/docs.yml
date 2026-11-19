@@ -124,8 +124,10 @@ jobs:
         env:
           SRC_REF: ${{ steps.ver.outputs.src_ref }}
         run: |
+          # Resolve to a commit first: rejects typos and option-like input.
+          sha=$(git rev-parse --verify --end-of-options "$SRC_REF^{commit}")
           rm -rf docs
-          git checkout "$SRC_REF" -- docs mkdocs.yml
+          git checkout "$sha" -- docs mkdocs.yml
 
       - name: Configure git for mike
         if: github.event_name != 'pull_request'
@@ -145,7 +147,7 @@ jobs:
           # set-default writes the redirect again.
           keep=$(python3 -c 'import json,os; v=json.load(open("versions.json")) if os.path.exists("versions.json") else []; print("\n".join(n for x in v for n in [x["version"], *x["aliases"]]))')
           for f in $(git ls-tree --name-only HEAD); do
-            case "$f" in .nojekyll|versions.json|pr-preview) continue ;; esac
+            case "$f" in .nojekyll|versions.json|pr-preview|404.html) continue ;; esac
             if printf '%s\n' "$keep" | grep -qxF "$f"; then continue; fi
             git rm -rq -- "$f"
           done
@@ -166,3 +168,20 @@ jobs:
           else
             uv run mike deploy --push "$VERSION"
           fi
+
+      # Root 404.html: redirects old unversioned links (/usage/training/) to
+      # the same page under latest/. Taken from this checkout, not from a
+      # backfilled ref. No commit when unchanged.
+      - name: Install root 404 redirect
+        if: github.event_name != 'pull_request'
+        run: |
+          git worktree add -q /tmp/gh-pages gh-pages
+          cp .github/pages/404.html /tmp/gh-pages/404.html
+          cd /tmp/gh-pages
+          git add 404.html
+          if ! git diff --cached --quiet; then
+            git commit -q -m "docs: update root 404 redirect"
+            git push -q origin gh-pages
+          fi
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove /tmp/gh-pages
