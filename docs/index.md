@@ -17,7 +17,7 @@
 
 ArcaNN proposes an automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials.
 It simplifies and automates the iterative training process of a neural network potential for a user-chosen system.
-ArcaNN supports two neural network potential architectures, and you choose which one to use at the start of the procedure:
+It simplifies and automates the iterative training (or finetuning) process of a neural network potential for a user-chosen system.
 
 - [**DeePMD-kit**](https://doi.org/10.1063/5.0155600) (default), and
 - [**MACE**](https://github.com/ACEsuit/mace), an equivariant message-passing architecture (added in version 2.0).
