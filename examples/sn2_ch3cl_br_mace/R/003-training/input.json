@@ -1,0 +1,4 @@
+{
+	"job_walltime_train_h": 8.0,
+	"max_num_epochs": 600
+}
