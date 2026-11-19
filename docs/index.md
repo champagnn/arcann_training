@@ -32,6 +32,7 @@ The choice is made once, through a single `nnp_program` setting during initializ
 ## Iterative Training Process
 
 During the iterative training process, you will:
+1. Train neural network potentials or finetune foundation models.
 
 1. Train neural network potentials.
 
