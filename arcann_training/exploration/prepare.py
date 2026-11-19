@@ -1095,7 +1095,7 @@ def main(
                         rerun_job_file = replace_substring_in_string_list(
                             rerun_job_file,
                             "_R_RERUN_FILE_",
-                            f' "{system_auto}_{nnp_index}_{padded_curr_iter}-rerun.in"',
+                            f"{system_auto}_{nnp_index}_{padded_curr_iter}-rerun.in",
                         )
                         rerun_job_file = replace_substring_in_string_list(
                             rerun_job_file,

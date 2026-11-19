@@ -449,11 +449,6 @@ class LAMMPSInputHandler:
         for key, value in variables.items():
             formatted_text = formatted_text.replace(key, value)
 
-        # TODO: this is ugly, needs refactoring
-        if hasattr(self, "mace_rerun_text"):
-            for key, value in variables.items():
-                self.mace_rerun_text = self.mace_rerun_text.replace(key, value)
-
         return formatted_text if not splitlines else formatted_text.splitlines()
 
     def write(self, file: Path, input_replace_dict: dict[str, str]) -> None:
@@ -462,8 +457,11 @@ class LAMMPSInputHandler:
 
         match self.lmp_pair:
             case LAMMPSPair.MACE | LAMMPSPair.MLIAP | LAMMPSPair.SYMMETRIX:
+                rerun_text = self.mace_rerun_text
+                for key, value in input_replace_dict.items():
+                    rerun_text = rerun_text.replace(key, value)
                 with file.with_stem(file.stem + "-rerun").open("w+") as inp_rr:
-                    inp_rr.write(self.mace_rerun_text)
+                    inp_rr.write(rerun_text)
 
     @property
     def lmp_pair(self) -> LAMMPSPair:
