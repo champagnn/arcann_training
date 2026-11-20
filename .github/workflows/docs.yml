@@ -1,23 +1,187 @@
 name: Documentation Deployment
-on: [push, pull_request]
+# Versioned docs with mike (https://github.com/jimporter/mike):
+#   push to develop        -> /dev/
+#   push tag vX.Y.Z        -> /vX.Y.Z/ (+ "latest" alias, which is the site default)
+#   push tag vX.Y.Z-<pre>  -> /vX.Y.Z-<pre>/ (no "latest" alias)
+#   workflow_dispatch      -> backfill a version from any ref (e.g. v1.0.0)
+#   pull_request           -> unversioned preview under /pr-preview/pr-<N>/
+on:
+  push:
+    branches:
+      - develop
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (tag/branch/sha) whose docs/ and mkdocs.yml are built"
+        required: true
+        default: "v1.0.0"
+      version:
+        description: "Version name on the site (defaults to the ref)"
+        required: false
+      latest:
+        description: "Also point the 'latest' alias (site default) at this version"
+        type: boolean
+        default: false
+      clean_root:
+        description: "One-time: delete the pre-versioning build from the gh-pages root"
+        type: boolean
+        default: false
+  pull_request:
+    branches:
+      - main
+      - develop
+    types: [opened, reopened, synchronize, closed]
 
 permissions:
   contents: write
+  pull-requests: write  # PR preview action comments the preview link
+
+# Version deploys and PR previews all push to gh-pages; serialize them.
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.x
-        uses: actions/setup-python@v5
         with:
-          python-version: 3.x
-      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
+          fetch-depth: 0  # mike commits to gh-pages; dispatch needs other refs
+      - name: Install uv and set the Python version
+        if: github.event.action != 'closed'
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+        if: github.event.action != 'closed'
       - uses: actions/cache@v4
+        if: github.event.action != 'closed'
         with:
           key: mkdocs-${{ env.cache_id }}
           path: .cache
           restore-keys: |
             mkdocs-
-      - run: pip install mkdocs mkdocs-awesome-pages-plugin mkdocs-markdownextradata-plugin
-      - run: mkdocs gh-deploy --force --clean --verbose
+      - run: uv sync --locked --group docs
+        if: github.event.action != 'closed'
+
+      # ---------------------------------------------------------------- PR preview
+      # Published to gh-pages under pr-preview/pr-<N>/, removed on close.
+      # Skipped for PRs from forks (no write access to gh-pages).
+      - name: Build PR preview
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        run: |
+          uv run mkdocs build --clean --verbose
+          touch site/.nojekyll
+      - name: Deploy PR preview
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: site/
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
+
+      # ---------------------------------------------------------- versioned deploy
+      - name: Resolve version
+        id: ver
+        if: github.event_name != 'pull_request'
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          IN_REF: ${{ inputs.ref }}
+          IN_VERSION: ${{ inputs.version }}
+          IN_LATEST: ${{ inputs.latest }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            version="${IN_VERSION:-$IN_REF}"
+            latest="$IN_LATEST"
+            src_ref="$IN_REF"
+          elif [ "$REF_TYPE" = "tag" ]; then
+            version="$REF_NAME"
+            # Pre-releases (v2.0.0-beta1, ...) never become "latest".
+            case "$REF_NAME" in *-*) latest=false ;; *) latest=true ;; esac
+            src_ref=""
+          else  # push to develop
+            version="dev"
+            latest=false
+            src_ref=""
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "src_ref=$src_ref" >> "$GITHUB_OUTPUT"
+          echo "Deploying docs version '$version' (latest=$latest, src_ref='${src_ref:-HEAD}')"
+
+      # Backfill: build an older ref exactly as it was (its own docs/ and
+      # mkdocs.yml, e.g. the readthedocs theme for v1.0.0). Only the build
+      # tooling comes from this checkout. Non-Material themes have no version
+      # selector; those versions are reached from the selector of newer ones.
+      - name: Check out docs from ref
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          SRC_REF: ${{ steps.ver.outputs.src_ref }}
+        run: |
+          # Resolve to a commit first: rejects typos and option-like input.
+          sha=$(git rev-parse --verify --end-of-options "$SRC_REF^{commit}")
+          rm -rf docs
+          git checkout "$sha" -- docs mkdocs.yml
+
+      - name: Configure git for mike
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages --depth=1 || true
+
+      - name: Remove pre-versioning build from gh-pages root
+        if: github.event_name == 'workflow_dispatch' && inputs.clean_root
+        run: |
+          git worktree add /tmp/gh-pages origin/gh-pages
+          cd /tmp/gh-pages
+          git checkout -B gh-pages
+          # Keep mike's version/alias dirs, versions.json, PR previews and .nojekyll.
+          # The root index.html goes too; run this with latest=true so
+          # set-default writes the redirect again.
+          keep=$(python3 -c 'import json,os; v=json.load(open("versions.json")) if os.path.exists("versions.json") else []; print("\n".join(n for x in v for n in [x["version"], *x["aliases"]]))')
+          for f in $(git ls-tree --name-only HEAD); do
+            case "$f" in .nojekyll|versions.json|pr-preview|404.html) continue ;; esac
+            if printf '%s\n' "$keep" | grep -qxF "$f"; then continue; fi
+            git rm -rq -- "$f"
+          done
+          git commit -m "docs: remove pre-versioning build from site root" || true
+          git push origin gh-pages
+          cd - && git worktree remove /tmp/gh-pages
+          git fetch origin gh-pages --depth=1
+
+      - name: Deploy version with mike
+        if: github.event_name != 'pull_request'
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          LATEST: ${{ steps.ver.outputs.latest }}
+        run: |
+          if [ "$LATEST" = "true" ]; then
+            uv run mike deploy --push --update-aliases "$VERSION" latest
+            uv run mike set-default --push latest
+          else
+            uv run mike deploy --push "$VERSION"
+          fi
+
+      # Root 404.html: redirects old unversioned links (/usage/training/) to
+      # the same page under latest/. Taken from this checkout, not from a
+      # backfilled ref. No commit when unchanged.
+      - name: Install root 404 redirect
+        if: github.event_name != 'pull_request'
+        run: |
+          git worktree add -q /tmp/gh-pages gh-pages
+          cp .github/pages/404.html /tmp/gh-pages/404.html
+          cd /tmp/gh-pages
+          git add 404.html
+          if ! git diff --cached --quiet; then
+            git commit -q -m "docs: update root 404 redirect"
+            git push -q origin gh-pages
+          fi
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove /tmp/gh-pages
