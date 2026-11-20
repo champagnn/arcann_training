@@ -65,11 +65,11 @@ pip install ".[mace]"
 # pair_style mliap (adds cuequivariance-torch)
 pip install ".[mace-mliap]"
 
-# pair_style symmetrix/mace
-pip install ".[symmetrix]"
+# pair_style symmetrix/mace (symmetrix is not on PyPI: installed from its repository)
+pip install ".[mace]" "symmetrix @ git+https://github.com/wcwitt/symmetrix.git@main#subdirectory=symmetrix"
 ```
 
-(For `symmetrix`, `pip`'s `--config-settings` flag can also be passed through if your build needs it.) Each extra pulls in `mace-torch` plus whatever additional package that `pair_style` requires.
+(For `symmetrix`, `pip`'s `--config-settings` flag can also be passed through if your build needs it.) Each extra pulls in `mace-torch` plus whatever additional package that `pair_style` requires. symmetrix is not an extra because it is not published on PyPI, and PyPI does not allow packages to depend on a git repository.
 
 **Where you need this installed** depends on how MACE models get converted to their LAMMPS-ready format:
 
@@ -82,7 +82,7 @@ If your machine does not have access to the internet, download ArcaNN's dependen
 
 - **Download the Repository and the Packages it Needs:**
 
-On a machine with internet access, download the `ArcaNN` repository, then download the wheels for ArcaNN and all its dependencies into a local folder (append `[mace]`, `[mace-mliap]`, or `[symmetrix]` to `./arcann_training` below if you also need [MACE support](#installing-mace-support)):
+On a machine with internet access, download the `ArcaNN` repository, then download the wheels for ArcaNN and all its dependencies into a local folder (append `[mace]` or `[mace-mliap]` to `./arcann_training` below if you also need [MACE support](#installing-mace-support); for symmetrix, also add `"symmetrix @ git+https://github.com/wcwitt/symmetrix.git@main#subdirectory=symmetrix"` to the command, which downloads its source to build on the offline machine):
 
 ```bash
 pip download ./arcann_training -d arcann_offline_packages

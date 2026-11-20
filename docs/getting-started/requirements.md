@@ -26,7 +26,7 @@ Different steps in the workflow are supported by specific programs. For the **tr
 **Neural network potential program (pick one, used in the training step):**
 
 - **DeePMD-kit**: `>= 2.0` (supported versions currently include `2.0`, `2.1`, `2.2`, and `3.0`). Used when `nnp_program` is set to `"deepmd"` (the default). Also used in the optional **testing** step.
-- **MACE**: used when `nnp_program` is set to `"mace"`. Note that the **testing** step does not yet support MACE, and that MACE exploration currently only works with LAMMPS (not Sander/EMLE; see [Exploration](../usage/exploration.md)). MACE itself is **not** a default dependency of ArcaNN: you may additionally install one of the `mace`, `mace-mliap`, or `symmetrix` extras — see [Installing MACE Support](./installation.md#installing-mace-support) — matching the `pair_style` below that your LAMMPS build supports.
+- **MACE**: used when `nnp_program` is set to `"mace"`. Note that the **testing** step does not yet support MACE, and that MACE exploration currently only works with LAMMPS (not Sander/EMLE; see [Exploration](../usage/exploration.md)). MACE itself is **not** a default dependency of ArcaNN: you may additionally install the `mace` or `mace-mliap` extra, or symmetrix — see [Installing MACE Support](./installation.md#installing-mace-support) — matching the `pair_style` below that your LAMMPS build supports.
 
 **Molecular dynamics and supporting programs (used in the exploration step):**
 

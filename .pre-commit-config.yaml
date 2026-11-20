@@ -17,6 +17,13 @@ repos:
       # Run the formatter.
       - id: ruff-format
 
+  # Enforce conventional commit messages (needed by `cz bump` for semver).
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.19.4
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
   - repo: local
     hooks:
       - id: unittest

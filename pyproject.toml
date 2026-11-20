@@ -4,9 +4,21 @@ build-backend = "hatchling.build"
 
 [project]
 name = "arcann_training"
-version = "2.0.0"
+version = "1.0.0"
 description = "An automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials"
-authors = [{name = "Theoretical Chemistry Group - ENS"}]
+authors = [
+    {name = "Rolf David"},
+    {name = "Emanuel Fernandes Dias Mancio"},
+    {name = "Mathilde Kretz"},
+    {name = "Miguel de la Puente"},
+    {name = "Axel Gomez"},
+    {name = "Olaia Anton"},
+    {name = "Elizabeth R. Bartlett"},
+    {name = "Ward H. Thompson"},
+    {name = "Kaline Coutinho"},
+    {name = "Guillaume Stirnemann"},
+    {name = "Damien Laage"},
+]
 readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.10"
@@ -16,13 +28,35 @@ dependencies = [
     "pyyaml>=3.13",
     "strenum>=0.4.15 ; python_full_version == '3.10.*'",
 ]
+keywords = [
+    "machine learning interatomic potentials",
+    "active learning",
+    "enhanced sampling",
+    "reactive chemistry",
+    "molecular dynamics",
+    "DeePMD-kit",
+    "MACE",
+]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
     "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
 ]
 
 [project.urls]
 Repository = "https://github.com/champagnn/arcann_training"
 Documentation = "https://champagnn.github.io/arcann_training/"
+Issues = "https://github.com/champagnn/arcann_training/issues"
+Changelog = "https://github.com/champagnn/arcann_training/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 mace = [
@@ -32,16 +66,18 @@ mace-mliap = [
     "arcann_training[mace]",
     "cuequivariance-torch>=0.8.1",
 ]
-symmetrix = [
-    "arcann_training[mace]",
-    "symmetrix @ git+https://github.com/wcwitt/symmetrix.git@main#subdirectory=symmetrix",
-]
+# Disabled: symmetrix is not on PyPI, and PyPI rejects git dependencies (see installation docs).
+# mace-symmetrix = [
+#     "arcann_training[mace]",
+#     "symmetrix @ git+https://github.com/wcwitt/symmetrix.git@main#subdirectory=symmetrix",
+# ]
 
 [project.scripts]
 arcann = "arcann_training.__main__:main"
 
 [dependency-groups]
 dev = [
+    "commitizen>=4.0.0",
     "pre-commit>=4.2.0",
     "ruff>=0.11.13",
 ]
@@ -53,8 +89,34 @@ docs = [
     "mkdocs-material>=9.7.7",
 ]
 
-[tool.uv.sources]
-symmetrix = { git = "https://github.com/wcwitt/symmetrix.git", subdirectory = "symmetrix" }
+# Keep the sdist to code + tests. Examples, docs and paper data live in the
+# repository (and in the Zenodo archive), not on PyPI.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/arcann_training",
+    "/LICENSE",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/CITATION.cff",
+    "/pyproject.toml",
+]
+exclude = ["__pycache__"]
 
-[tool.hatch.metadata]
-allow-direct-references = true
+[tool.hatch.build.targets.wheel]
+packages = ["arcann_training"]
+exclude = ["arcann_training/unittests"]
+
+# Releases: the "Release PR" workflow (release.yml) runs `cz bump`, which reads
+# the conventional commits since the last tag, picks the semver increment and
+# updates the version (pyproject.toml, uv.lock, CITATION.cff) and CHANGELOG.md on a
+# release PR. Merging it makes publish.yml tag vX.Y.Z and publish.
+# Do not edit `version` by hand: a new untagged version on main is released.
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "uv"
+version_scheme = "semver2"
+tag_format = "v$version"
+update_changelog_on_bump = true
+changelog_incremental = true
+major_version_zero = false
+version_files = ["CITATION.cff:^version"]

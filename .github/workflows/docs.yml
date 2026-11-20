@@ -47,7 +47,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # mike commits to gh-pages; dispatch needs other refs
       - name: Install uv and set the Python version
@@ -58,7 +58,7 @@ jobs:
           enable-cache: true
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
         if: github.event.action != 'closed'
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: github.event.action != 'closed'
         with:
           key: mkdocs-${{ env.cache_id }}

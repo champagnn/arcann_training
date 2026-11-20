@@ -1,6 +1,8 @@
-<div style="text-align: center;">
-<img src="./docs/arcann_logo.svg" alt="ArcaNN logo" style="width: 25%; height: auto;" />
-</div>
+<!-- Absolute URL and HTML attributes (no `style`): the README is also rendered on PyPI,
+     which has no base URL for relative paths and strips inline styles. -->
+<p align="center">
+<img src="https://raw.githubusercontent.com/champagnn/arcann_training/main/docs/arcann_logo.svg" alt="ArcaNN logo" width="250" />
+</p>
 
 ---
 
@@ -47,7 +49,12 @@ These can be installed following the instructions of each package, or using the 
 ```bash
 pip install ./arcann_training[mace] # To install mace-torch
 pip install ./arcann_training[mace-mliap] # To install mace-torch and cuequivariance-torch
-pip install ./arcann_training[symmetrix] # To install mace-torch and symmetrix
+```
+
+symmetrix is not published on PyPI, so it is not an optional dependency of ArcaNN; install it from its repository together with the `mace` extra:
+
+```bash
+pip install ./arcann_training[mace] "symmetrix @ git+https://github.com/wcwitt/symmetrix.git@main#subdirectory=symmetrix"
 ```
 
 In the case of symmetrix, `--config-settings` can also be passed.
