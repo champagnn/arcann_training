@@ -282,8 +282,8 @@ def main(
                                         f"{system_output_cp2k_file[step]}"
                                     )
                                 else:
-                                    system_candidates_failed[0].append(
-                                        f"{system_output_orca_file}"
+                                    system_candidates_failed[step].append(
+                                        f"{system_output_cp2k_file[step]}"
                                     )
                             else:
                                 system_candidates_failed[step].append(
@@ -327,50 +327,6 @@ def main(
                             system_candidates_failed[0].append(
                                 f"{system_output_orca_file}"
                             )
-
-        if (
-            candidates_step_count[1] == 0
-            and candidates_skipped_count == 0
-            and labeling_program == "cp2k"
-            and two_steps
-        ):
-            arcann_logger.critical(
-                "ALL jobs have failed/not converged/still running (second step)."
-            )
-            arcann_logger.critical("Please check manually before relaunching this step")
-            arcann_logger.critical(
-                'Or create files named "skip" to skip some configurations'
-            )
-            arcann_logger.critical("Aborting...")
-            return 1
-        elif (
-            candidates_step_count[0] == 0
-            and candidates_skipped_count == 0
-            and labeling_program == "cp2k"
-        ):
-            arcann_logger.critical(
-                "ALL jobs have failed/not converged/still running (first step)."
-            )
-            arcann_logger.critical("Please check manually before relaunching this step")
-            arcann_logger.critical(
-                'Or create files named "skip" to skip some configurations'
-            )
-            arcann_logger.critical("Aborting...")
-            return 1
-        elif (
-            candidates_step_count[0] == 0
-            and candidates_skipped_count == 0
-            and labeling_program == "orca"
-        ):
-            arcann_logger.critical(
-                "ALL jobs have failed/not converged/still running (first step)."
-            )
-            arcann_logger.critical("Please check manually before relaunching this step")
-            arcann_logger.critical(
-                'Or create files named "skip" to skip some configurations'
-            )
-            arcann_logger.critical("Aborting...")
-            return 1
 
         timings = {}
         # For the very special case where there are no converged subsystems (e.g., if you skipped all jobs)
@@ -457,6 +413,51 @@ def main(
             f"Processed system: {system_auto} ({system_auto_index + 1}/{len(labeling_json['systems_auto'])})"
         )
     del system_auto, system_auto_index
+
+    # Abort only after every system has been processed, so the not_converged/failed lists are written for all of them
+    if (
+        candidates_step_count[1] == 0
+        and candidates_skipped_count == 0
+        and labeling_program == "cp2k"
+        and two_steps
+    ):
+        arcann_logger.critical(
+            "ALL jobs have failed/not converged/still running (second step)."
+        )
+        arcann_logger.critical("Please check manually before relaunching this step")
+        arcann_logger.critical(
+            'Or create files named "skip" to skip some configurations'
+        )
+        arcann_logger.critical("Aborting...")
+        return 1
+    elif (
+        candidates_step_count[0] == 0
+        and candidates_skipped_count == 0
+        and labeling_program == "cp2k"
+    ):
+        arcann_logger.critical(
+            "ALL jobs have failed/not converged/still running (first step)."
+        )
+        arcann_logger.critical("Please check manually before relaunching this step")
+        arcann_logger.critical(
+            'Or create files named "skip" to skip some configurations'
+        )
+        arcann_logger.critical("Aborting...")
+        return 1
+    elif (
+        candidates_step_count[0] == 0
+        and candidates_skipped_count == 0
+        and labeling_program == "orca"
+    ):
+        arcann_logger.critical(
+            "ALL jobs have failed/not converged/still running (first step)."
+        )
+        arcann_logger.critical("Please check manually before relaunching this step")
+        arcann_logger.critical(
+            'Or create files named "skip" to skip some configurations'
+        )
+        arcann_logger.critical("Aborting...")
+        return 1
 
     # Check first step, write warning if not converged/failed and CP2K, abort if not converged/failed and ORCA
     if (
