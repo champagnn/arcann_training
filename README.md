@@ -13,10 +13,6 @@
 
 ---
 
-*This is a fork of the original ArcaNN repository (`arcann-chem/arcann_training`).*
-
----
-
 # ArcaNN #
 
 ArcaNN proposes an automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials.
@@ -25,7 +21,7 @@ The main advantages of this code are its modularity, the ability to finely tune 
 During the iterative training process, you will iteratively train neural network potentials, use them as reactive force fields for molecular dynamics simulations (to explore the phase space), select and label some configurations based on a query by committee approach, and then train neural network potentials again with an improved training set, and so forth.
 This workflow, sometimes referred to as active or concurrent learning, was heavily inspired by [DP-GEN](https://doi.org/10.1016/j.cpc.2020.107206), and we use their naming scheme for the steps of the iterative procedure.
 
-We refer the reader to the [documentation](https://champagnn.github.io/arcann_training/) and the accompanying paper [ArcaNN: automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials](https://doi.org/10.1039/D4DD00209A). (*The documentation has not been updated to include changes from this fork.*)
+We refer the reader to the [documentation](https://champagnn.github.io/arcann_training/) and the accompanying paper [ArcaNN: automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials](https://doi.org/10.1039/D4DD00209A).
 
 ## Installation ##
 
@@ -54,7 +50,7 @@ In the case of symmetrix, `--config-settings` can also be passed.
 
 ## Usage ##
 
-The [original documentation](https://champagnn.github.io/arcann_training/) should be read. Changes to usage of this version are explained bellow.
+The [documentation](https://champagnn.github.io/arcann_training/) should be read. Some usage details are summarized below.
 
 ### Dataset ###
 
@@ -107,7 +103,7 @@ The phases `compress` and `check_compress` are only mandatory when the environme
 
 ### Exploration ###
 
-*MACE is not supported on i-PI and sander.*
+*MACE is not supported on Sander/EMLE.*
 
 Use the [example scripts](https://github.com/champagnn/arcann_training/tree/main/examples/user_files/job_exploration_lammps_slurm) provided to create the scripts for your HPC.
 
@@ -122,7 +118,7 @@ flowchart LR
 
 ### Labeling ###
 
-Labeling can be done using [ORCA](https://www.faccts.de/docs/orca/6.1/manual/index.html) and [CP2K](https://www.cp2k.org/). No changes for the user were done in this phase. However, we are aware of bugs when using CP2K 2024, that also affects the original ArcaNN code.
+Labeling can be done using [ORCA](https://www.faccts.de/docs/orca/6.1/manual/index.html) and [CP2K](https://www.cp2k.org/). However, we are aware of bugs when using CP2K 2024.
 
 The order of the steps for the `labeling` phase is:
 
@@ -197,10 +193,6 @@ David, R.; de la Puente, M.; Gomez, A.; Anton, O.; Stirnemann, G.; Laage, D. Arc
 ### LAMMPS ###
 
 - Thompson, A. P.; Aktulga, H. M.; Berger, R.; Bolintineanu, D. S.; Brown, W. M.; Crozier, P. S.; In ’T Veld, P. J.; Kohlmeyer, A.; Moore, S. G.; Nguyen, T. D.; Shan, R.; Stevens, M. J.; Tranchida, J.; Trott, C.; Plimpton, S. J. LAMMPS - a Flexible Simulation Tool for Particle-Based Materials Modeling at the Atomic, Meso, and Continuum Scales. Comput. Phys. Commun. 2022, 271, 108171. [https://doi.org/10.1016/j.cpc.2021.108171](https://doi.org/10.1016/j.cpc.2021.108171).
-
-### i-PI ###
-
-- Kapil, V.; Rossi, M.; Marsalek, O.; Petraglia, R.; Litman, Y.; Spura, T.; Cheng, B.; Cuzzocrea, A.; Meißner, R. H.; Wilkins, D. M.; Helfrecht, B. A.; Juda, P.; Bienvenue, S. P.; Fang, W.; Kessler, J.; Poltavsky, I.; Vandenbrande, S.; Wieme, J.; Corminboeuf, C.; Kühne, T. D.; Manolopoulos, D. E.; Markland, T. E.; Richardson, J. O.; Tkatchenko, A.; Tribello, G. A.; Van Speybroeck, V.; Ceriotti, M. I-PI 2.0: A Universal Force Engine for Advanced Molecular Simulations. Comput. Phys. Commun. 2019, 236, 214–223. [https://doi.org/10.1016/j.cpc.2018.09.020](https://doi.org/10.1016/j.cpc.2018.09.020).
 
 ### CP2K ###
 
