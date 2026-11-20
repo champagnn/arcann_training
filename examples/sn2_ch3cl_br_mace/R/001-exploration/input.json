@@ -1,0 +1,5 @@
+{
+    "previous_start": false,
+    "print_interval_mult": 0.001,
+	"exp_time_ps": [40.0, 40.0, 10.0, 40.0, 20.0, 10.0, 40.0, 10.0, 10.0, 40.0, 40.0, 10.0]
+}
