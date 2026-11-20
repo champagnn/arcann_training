@@ -1,0 +1,72 @@
+name: "Version Guard"
+
+# Fails a PR that changes the package version (pyproject.toml / CITATION.cff)
+# unless it comes from a release/* branch (opened by release.yml), or from a
+# back-merge/* branch (opened by publish.yml) or main, which bring a release
+# back into develop. publish.yml releases any new, untagged
+# version that reaches main, so a version must only change through a release PR.
+
+on:
+  pull_request:
+  workflow_dispatch: # manual run (e.g. to re-check a branch)
+
+jobs:
+  version-guard:
+    name: Version guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check version changes
+        env:
+          HEAD_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || 'main' }}
+        run: |
+          case "${HEAD_BRANCH}" in
+            release/*)
+              # publish.yml tags the merge commit; a pre-existing tag (e.g. pushed
+              # after a local `cz bump`) would make it skip the release silently.
+              version=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+              rc=0
+              git ls-remote --exit-code --tags origin "refs/tags/v${version}" > /dev/null || rc=$?
+              if [ "${rc}" -eq 0 ]; then
+                echo "::error file=pyproject.toml::Tag v${version} already exists on the remote, so merging this PR would not publish anything. If it was pushed from a local 'cz bump', delete it (git push origin :refs/tags/v${version}) and re-run this check."
+                exit 1
+              elif [ "${rc}" -ne 2 ]; then # 2 = no matching ref; anything else is a failure
+                echo "::error::Could not query remote tags (git ls-remote exit code ${rc})."
+                exit 1
+              fi
+              echo "Release branch ${HEAD_BRANCH}: v${version} is not tagged yet."
+              exit 0 ;;
+            back-merge/*|main)
+              echo "Branch ${HEAD_BRANCH} may change the version."
+              exit 0 ;;
+          esac
+
+          git fetch --depth=1 origin "${BASE_BRANCH}"
+
+          pyproject_version() {
+            python3 -c "import sys, tomllib; print(tomllib.loads(sys.stdin.read())['project']['version'])"
+          }
+          cff_version() {
+            sed -n 's/^version: *//p'
+          }
+
+          base_py=$(git show "origin/${BASE_BRANCH}:pyproject.toml" | pyproject_version)
+          head_py=$(pyproject_version < pyproject.toml)
+          base_cff=$(git show "origin/${BASE_BRANCH}:CITATION.cff" 2>/dev/null | cff_version || true)
+          head_cff=$(cff_version < CITATION.cff)
+          echo "pyproject.toml: ${BASE_BRANCH}=${base_py} PR=${head_py}"
+          echo "CITATION.cff:   ${BASE_BRANCH}=${base_cff:-<missing>} PR=${head_cff}"
+
+          failed=0
+          if [ "${base_py}" != "${head_py}" ]; then
+            echo "::error file=pyproject.toml::This PR changes the version (${base_py} -> ${head_py}). Versions are changed only by the Release PR workflow (cz bump); a new version on main is published automatically."
+            failed=1
+          fi
+          if [ -n "${base_cff}" ] && [ "${base_cff}" != "${head_cff}" ]; then
+            echo "::error file=CITATION.cff::This PR changes the version (${base_cff} -> ${head_cff}). Versions are changed only by the Release PR workflow (cz bump)."
+            failed=1
+          fi
+          exit "${failed}"

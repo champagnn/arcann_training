@@ -1,0 +1,91 @@
+# Read by GitHub ("Cite this repository") and by Zenodo when a release is archived.
+# `version` is updated by `cz bump` (Release PR workflow); do not edit it by hand.
+
+cff-version: 1.2.0
+message: >-
+  If you use ArcaNN, please cite both the software (this record) and the
+  accompanying paper listed under references.
+type: software
+title: "ArcaNN: automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials"
+version: 1.0.0
+license: AGPL-3.0-only
+repository-code: "https://github.com/champagnn/arcann_training"
+url: "https://champagnn.github.io/arcann_training/"
+abstract: >-
+  ArcaNN automates the iterative (active/concurrent learning) generation of
+  training sets for reactive machine learning interatomic potentials such as
+  DeePMD-kit and MACE: it trains a committee of models, explores phase space
+  with enhanced-sampling molecular dynamics, selects configurations by query by
+  committee, labels them, and retrains, while recording every parameter used.
+keywords:
+  - machine learning interatomic potentials
+  - active learning
+  - enhanced sampling
+  - reactive chemistry
+  - molecular dynamics
+  - DeePMD-kit
+  - MACE
+authors:
+  - given-names: Rolf
+    family-names: David
+    orcid: "https://orcid.org/0000-0001-5338-6267"
+    affiliation: "CPCV, Département de Chimie, École Normale Supérieure, PSL University, Sorbonne Université, Paris, France; Université Grenoble Alpes, DCM, CNRS, Grenoble, France"
+  - given-names: Emanuel Fernandes Dias
+    family-names: Mancio
+    orcid: "https://orcid.org/0000-0002-0262-711X"
+    affiliation: "CPCV, Département de Chimie, École Normale Supérieure, PSL University, Sorbonne Université, Paris, France; Instituto de Física, Universidade de São Paulo, São Paulo, Brasil"
+  - given-names: Mathilde
+    family-names: Kretz
+    orcid: "https://orcid.org/0009-0001-5113-1815"
+    affiliation: "CPCV, Département de Chimie, École Normale Supérieure, PSL University, Sorbonne Université, Paris, France; CEA, DAM, DIF, Arpajon, France"
+  - given-names: Miguel
+    family-names: de la Puente
+    orcid: "https://orcid.org/0000-0002-4432-9612"
+    affiliation: "CPCV, Département de Chimie, École Normale Supérieure, PSL University, Sorbonne Université, Paris, France"
+  - given-names: Axel
+    family-names: Gomez
+    orcid: "https://orcid.org/0000-0002-0378-4352"
+    affiliation: "CPCV, Département de Chimie, École Normale Supérieure, PSL University, Sorbonne Université, Paris, France"
+  - given-names: Olaia
+    family-names: Anton
+    orcid: "https://orcid.org/0009-0004-8013-0098"
+    affiliation: "CPCV, Département de Chimie, École Normale Supérieure, PSL University, Sorbonne Université, Paris, France"
+  - given-names: Elizabeth R.
+    family-names: Bartlett
+    orcid: "https://orcid.org/0009-0000-4883-4467"
+    affiliation: "Department of Chemistry, University of Kansas, Lawrence, USA"
+  - given-names: Ward H.
+    family-names: Thompson
+    orcid: "https://orcid.org/0000-0002-3636-6448"
+    affiliation: "Department of Chemistry, University of Kansas, Lawrence, USA"
+  - given-names: Kaline
+    family-names: Coutinho
+    orcid: "https://orcid.org/0000-0002-7586-3324"
+    affiliation: "Instituto de Física, Universidade de São Paulo, São Paulo, Brasil"
+  - given-names: Guillaume
+    family-names: Stirnemann
+    orcid: "https://orcid.org/0000-0002-5631-5699"
+    affiliation: "CPCV, Département de Chimie, École Normale Supérieure, PSL University, Sorbonne Université, Paris, France"
+  - given-names: Damien
+    family-names: Laage
+    orcid: "https://orcid.org/0000-0001-5706-9939"
+    affiliation: "CPCV, Département de Chimie, École Normale Supérieure, PSL University, Sorbonne Université, Paris, France"
+references:
+  - type: article
+    title: "ArcaNN: automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials"
+    authors:
+      - given-names: Rolf
+        family-names: David
+      - given-names: Miguel
+        family-names: de la Puente
+      - given-names: Axel
+        family-names: Gomez
+      - given-names: Olaia
+        family-names: Anton
+      - given-names: Guillaume
+        family-names: Stirnemann
+      - given-names: Damien
+        family-names: Laage
+    journal: Digital Discovery
+    year: 2024
+    doi: 10.1039/D4DD00209A

@@ -1,0 +1,258 @@
+name: "Publish"
+
+# Step 2 of a release (step 1 is release.yml, which opens the release PR).
+# Runs when pyproject.toml changes on main. If the version in pyproject.toml has
+# no vX.Y.Z tag yet (i.e. a release PR was just merged), it builds, publishes to
+# PyPI (trusted publishing + PEP 740 attestations), and only then tags the commit
+# and creates the GitHub Release, which triggers the Zenodo archive/DOI.
+# Finally it opens a PR merging main back into develop. Otherwise it does nothing.
+#
+# The tag marks a commit that is on PyPI. If a run fails before the upload,
+# no tag exists: fix the problem on main (a PR touching pyproject.toml re-runs
+# this automatically; otherwise run this workflow by hand on main).
+# If it fails after the upload, use "Re-run failed jobs" on the same run.
+
+on:
+  push:
+    branches: [main]
+    paths: [pyproject.toml]
+  workflow_dispatch: # manual run from main (retry after a fix)
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check for a new version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - name: Only run from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run this workflow from the main branch (got ${GITHUB_REF})."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check whether this version is already tagged
+        id: check
+        run: |
+          version=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          tag="v${version}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          rc=0
+          git ls-remote --exit-code --tags origin "refs/tags/${tag}" > /dev/null || rc=$?
+          if [ "${rc}" -eq 0 ]; then
+            echo "${tag} already exists: nothing to release."
+            echo "release=false" >> "${GITHUB_OUTPUT}"
+          elif [ "${rc}" -eq 2 ]; then # 2 = no matching ref
+            echo "${tag} is new: releasing ${GITHUB_SHA}."
+            echo "release=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "::error::Could not query remote tags (git ls-remote exit code ${rc})."
+            exit 1
+          fi
+
+  build:
+    name: Build distributions
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+
+      - name: Check that the versions match
+        env:
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          pkg_version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          cff_version=$(sed -n 's/^version: *//p' CITATION.cff)
+          tag_version="${TAG#v}"
+          echo "tag=${tag_version} pyproject=${pkg_version} CITATION.cff=${cff_version}"
+          if [ "${tag_version}" != "${pkg_version}" ] || [ "${tag_version}" != "${cff_version}" ]; then
+            echo "::error::${TAG} does not match pyproject.toml (${pkg_version}) / CITATION.cff (${cff_version}). Use the Release PR workflow (cz bump) to change versions."
+            exit 1
+          fi
+
+      - name: Run unit tests
+        run: |
+          uv sync --locked --dev
+          uv run python -m unittest discover arcann_training/unittests
+
+      - name: Build
+        run: uv build
+
+      - name: Check distributions
+        run: uvx twine check --strict dist/*
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/arcann_training/
+    permissions:
+      id-token: write # trusted publishing + attestations
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Unset in the real repository (-> PyPI). A rehearsal repository sets
+          # the PYPI_REPOSITORY_URL variable to https://test.pypi.org/legacy/.
+          repository-url: ${{ vars.PYPI_REPOSITORY_URL || 'https://upload.pypi.org/legacy/' }}
+          # PEP 740 (Sigstore) attestations; requires trusted publishing.
+          attestations: true
+          # A retry after a partial upload (e.g. wheel accepted, sdist not)
+          # must not fail on the files that are already there.
+          skip-existing: true
+
+  github-release:
+    name: Tag, create GitHub Release (triggers Zenodo) and deploy docs
+    needs: [check, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the tag and the release
+      actions: write # dispatch docs.yml
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create tag on the released commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          # Idempotent for "Re-run failed jobs": accept an existing tag on this commit.
+          # Decide on the exit status: on a 404, gh prints the error body to stdout.
+          if existing=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq .object.sha 2>/dev/null); then
+            if [ "${existing}" = "${GITHUB_SHA}" ]; then
+              echo "${TAG} already points to ${GITHUB_SHA}."
+            else
+              echo "::error::${TAG} already exists on ${existing}, not on ${GITHUB_SHA}."
+              exit 1
+            fi
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${TAG}" \
+              -f sha="${GITHUB_SHA}" --jq '"Created \(.ref) on \(.object.sha)"'
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          # Semver pre-release tags (v2.0.0-rc.1, ...) are published as GitHub
+          # "Pre-release" and never take the "Latest" badge.
+          case "${TAG}" in
+            *-*) release_type=(--prerelease --latest=false) ;;
+            *)   release_type=(--latest) ;;
+          esac
+          gh release create "${TAG}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "ArcaNN ${TAG}" \
+            --generate-notes \
+            --verify-tag \
+            "${release_type[@]}"
+
+      - name: Deploy versioned docs
+        # Tags created with GITHUB_TOKEN do not trigger docs.yml's `push: tags`,
+        # so dispatch it explicitly. Pre-releases never become "latest".
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          latest=true
+          case "${TAG}" in
+            *-*) latest=false ;;
+          esac
+          gh workflow run docs.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref "${TAG}" \
+            -f ref="${TAG}" \
+            -f version="${TAG}" \
+            -f latest="${latest}"
+
+  back-merge:
+    name: Open PR to merge the release into develop
+    needs: [check, github-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the back-merge branch
+      pull-requests: write # open the PR
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Open back-merge PR
+        # develop must contain the release commit, otherwise the next
+        # develop -> main PR is "out of date" (strict required checks). A PR
+        # straight from main cannot work: it would itself be out of date as soon
+        # as develop has commits main lacks, and updating it means pushing to
+        # main. So merge the release into a branch made from develop instead.
+        # Like the release PR, its checks wait for "Approve and run".
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          git fetch origin develop
+          if git merge-base --is-ancestor "${GITHUB_SHA}" origin/develop; then
+            echo "develop already contains ${TAG}: nothing to merge back."
+            exit 0
+          fi
+          branch="back-merge/${TAG}"
+          rc=0
+          git ls-remote --exit-code --heads origin "refs/heads/${branch}" > /dev/null || rc=$?
+          if [ "${rc}" -eq 0 ]; then
+            echo "${branch} already exists: its PR is open or was merged already."
+            exit 0
+          elif [ "${rc}" -ne 2 ]; then
+            echo "::error::Could not query remote branches (git ls-remote exit code ${rc})."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git switch -c "${branch}" origin/develop
+          if ! git merge --no-ff -m "chore(release): merge ${TAG} into develop" "${GITHUB_SHA}"; then
+            git merge --abort
+            echo "::error::Merging ${TAG} into develop has conflicts. Resolve them by hand on a ${branch} branch made from develop (git merge ${TAG}) and open a PR to develop."
+            exit 1
+          fi
+          git push origin "${branch}"
+          gh pr create --repo "${GITHUB_REPOSITORY}" \
+            --base develop \
+            --head "${branch}" \
+            --title "chore(release): merge ${TAG} into develop" \
+            --body "Brings the ${TAG} release (version, CITATION.cff, CHANGELOG.md) into \`develop\`, so the next \`develop\` -> \`main\` PR is up to date. The branch was made from \`develop\` and already contains the merge, so it is never out of date.
+
+          Click **Approve and run** to start the checks, then merge with a merge commit. *Version guard* allows the version change because the branch is \`back-merge/*\`."
