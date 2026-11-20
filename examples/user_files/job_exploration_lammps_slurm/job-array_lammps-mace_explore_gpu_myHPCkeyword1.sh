@@ -5,8 +5,12 @@
 #                                                                                                    #
 #   SPDX-License-Identifier: AGPL-3.0-only                                                           #
 #----------------------------------------------------------------------------------------------------#
-# Created: 2022/01/01
-# Last modified: 2023/12/12
+# Created: 2026/02/25
+# Last modified: 2026/11/19
+#----------------------------------------------
+# You must keep the _R_VARIABLES_ in the file.
+# You must keep the name file as job-array_lammps-mace_explore_ARCHTYPE_myHPCkeyword.sh.
+#----------------------------------------------
 # Project/Account
 #SBATCH --account=_R_PROJECT_@_R_ALLOC_
 # QoS/Partition/SubPartition
@@ -55,6 +59,9 @@ if [ -n "${array_param[6]}" ]; then
     IFS='" "' read -r -a PLUMED_FILES <<< "${array_param[6]}"
     EXTRA_FILES+=("${PLUMED_FILES[@]}")
 fi
+
+echo "--- DEBUG: MACE Files found: ${MACE_MODEL_FILES[*]}"
+echo "--- DEBUG: LAMMPS Input: ${LAMMPS_IN_FILE}"
 
 #----------------------------------------------
 # Adapt the following lines to your HPC system

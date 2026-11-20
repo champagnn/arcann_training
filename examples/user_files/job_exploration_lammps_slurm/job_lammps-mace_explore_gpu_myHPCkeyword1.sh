@@ -5,11 +5,11 @@
 #                                                                                                    #
 #   SPDX-License-Identifier: AGPL-3.0-only                                                           #
 #----------------------------------------------------------------------------------------------------#
-# Created: 2022/01/01
-# Last modified: 2024/05/15
+# Created: 2026/02/25
+# Last modified: 2026/11/19
 #----------------------------------------------
 # You must keep the _R_VARIABLES_ in the file.
-# You must keep the name file as job_lammps-MACE_explore_ARCHTYPE_myHPCkeyword.sh.
+# You must keep the name file as job_lammps-mace_explore_ARCHTYPE_myHPCkeyword.sh.
 #----------------------------------------------
 # Project/Account
 #SBATCH --account=_R_PROJECT_@_R_ALLOC_
@@ -73,6 +73,7 @@ export TEMPWORKDIR=${SCRATCH}/JOB-${SLURM_JOBID}
 mkdir -p "${TEMPWORKDIR}"
 ln -s "${TEMPWORKDIR}" "${SLURM_SUBMIT_DIR}/JOB-${SLURM_JOBID}"
 
+# Copy or link the necessary files 
 cp "${LAMMPS_IN_FILE}" "${TEMPWORKDIR}" && echo "${LAMMPS_IN_FILE} copied successfully"
 for f in "${MACE_MODEL_FILES[@]}"; do [ -f "${f}" ] && ln -s "$(realpath "${f}")" "${TEMPWORKDIR}" && echo "${f} linked successfully"; done
 for f in "${EXTRA_FILES[@]}"; do [ -f "${f}" ] && cp "${f}" "${TEMPWORKDIR}" && echo "${f} copied successfully"; done

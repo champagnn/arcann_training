@@ -5,8 +5,12 @@
 #                                                                                                    #
 #   SPDX-License-Identifier: AGPL-3.0-only                                                           #
 #----------------------------------------------------------------------------------------------------#
-# Created: 2026/03/27
-# Last modified: 2026/03/27
+# Created: 2026/02/25
+# Last modified: 2026/11/19
+#----------------------------------------------
+# You must keep the _R_VARIABLES_ in the file.
+# You must keep the name file as job_deepmd_compress_ARCHTYPE_myHPCkeyword.sh.
+#----------------------------------------------
 # Project/Account
 #SBATCH --account=_R_PROJECT_@_R_ALLOC_
 # QoS/Partition/SubPartition
