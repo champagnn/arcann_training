@@ -1,0 +1,113 @@
+name: "Release PR"
+
+# Step 1 of a release (run from Actions -> Release PR -> Run workflow, on `main`):
+# runs `cz bump` on a new release/vX.Y.Z branch and opens a PR to `main`.
+# Step 2 happens in publish.yml once that PR is merged: it publishes to PyPI,
+# then tags vX.Y.Z on the merge commit and creates the GitHub Release (-> Zenodo).
+# The tag is NOT created here, so nothing is released until the PR is reviewed.
+# The PR's checks (unit tests, version guard) run once a maintainer clicks
+# "Approve and run" on it: GitHub holds pull_request runs for PRs opened by
+# GitHub Actions until someone with write access approves them.
+
+on:
+  workflow_dispatch:
+    inputs:
+      increment:
+        description: "Version increment (auto = derived from conventional commits)"
+        type: choice
+        options: [auto, PATCH, MINOR, MAJOR]
+        default: auto
+      prerelease:
+        description: "Pre-release phase (none for a final release)"
+        type: choice
+        options: [none, alpha, beta, rc]
+        default: none
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+# commitizen comes from the `dev` dependency group in uv.lock (no extra pin here).
+env:
+  CZ: uv run --locked --only-group dev cz
+
+jobs:
+  release-pr:
+    name: Open release PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the release branch
+      pull-requests: write # open the PR
+    steps:
+      - name: Only run from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run this workflow from the main branch (got ${GITHUB_REF})."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # cz bump needs the full history and tags
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Bump version and changelog
+        id: bump
+        env:
+          INCREMENT: ${{ inputs.increment }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          args=(--yes)
+          if [ "${INCREMENT}" != "auto" ]; then args+=(--increment "${INCREMENT}"); fi
+          if [ "${PRERELEASE}" != "none" ]; then args+=(--prerelease "${PRERELEASE}"); fi
+
+          # If the current version was never released (its publish run failed
+          # before tagging), cz cannot compute the incremental changelog. Give it
+          # a temporary local tag on the commit that set that version; it is
+          # deleted below and never pushed.
+          current=$(${CZ} version --project)
+          skipped=""
+          if ! git rev-parse -q --verify "refs/tags/v${current}" > /dev/null; then
+            base=$(git log -1 --format=%H -G "^version = \"${current}\"$" -- pyproject.toml)
+            echo "::warning::v${current} was never released (no tag); computing the changelog from ${base}."
+            git tag "v${current}" "${base}"
+            skipped="v${current}"
+          fi
+
+          ${CZ} bump "${args[@]}"
+          version=$(${CZ} version --project)
+          # publish.yml tags the merge commit after review; drop the local tags.
+          git tag -d "v${version}"
+          if [ -n "${skipped}" ]; then git tag -d "${skipped}"; fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "skipped=${skipped}" >> "${GITHUB_OUTPUT}"
+
+      - name: Push branch and open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          SKIPPED: ${{ steps.bump.outputs.skipped }}
+        run: |
+          note=""
+          if [ -n "${SKIPPED}" ]; then
+            note="**Note:** ${SKIPPED} was never published (its release failed before tagging), so this release replaces it. Its section in \`CHANGELOG.md\` is kept; merge it into this one or mark it as not released before merging."
+          fi
+          branch="release/v${VERSION}"
+          git switch -c "${branch}"
+          git push origin "${branch}"
+          gh pr create \
+            --base main \
+            --head "${branch}" \
+            --title "chore(release): v${VERSION}" \
+            --body "Release **v${VERSION}**, prepared by \`cz bump\` (triggered by @${GITHUB_ACTOR}).
+
+          Checks on PRs opened by GitHub Actions wait for a maintainer: click **Approve and run** to start the unit tests and the version guard.
+          Review the version in \`pyproject.toml\` / \`CITATION.cff\` and the new \`CHANGELOG.md\` section.
+          Merging this PR tags \`v${VERSION}\`, publishes to PyPI and creates the GitHub Release (which archives it on Zenodo).
+          Close the PR and delete the branch to abort.
+
+          ${note}"

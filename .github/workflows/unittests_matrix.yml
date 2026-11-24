@@ -1,6 +1,19 @@
 name: Unit Tests Matrix
 
-on: [push, pull_request]
+# Feature branches are tested through their PR (pull_request), not on every
+# push, so a push to a PR branch runs the suite once. main/develop are also
+# tested after merges. workflow_dispatch: run on any branch by hand.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same PR cancels the run it supersedes; runs on main and
+# develop are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:

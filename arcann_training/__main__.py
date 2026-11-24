@@ -14,15 +14,29 @@ import argparse
 import importlib
 import logging
 import logging.config
+from importlib import metadata
 from pathlib import Path
 
 # Local imports
 from arcann_training.common.logging import setup_logging
 
 
+def _package_version() -> str:
+    try:
+        return metadata.version("arcann_training")
+    except metadata.PackageNotFoundError:
+        return "unknown"
+
+
 def main():
     # Parsing
     parser = argparse.ArgumentParser(description="Deepmd iterative program suite")
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"ArcaNN {_package_version()}",
+    )
     parser.add_argument("step_name", type=str, help="Step name")
     parser.add_argument("phase_name", type=str, help="Phase name")
     parser.add_argument(
@@ -72,7 +86,7 @@ def main():
     # Start
     arcann_logger.info("-" * 88)
     arcann_logger.info("-" * 88)
-    arcann_logger.info("ARCANN TRAINING PROGRAM SUITE")
+    arcann_logger.info(f"ARCANN TRAINING PROGRAM SUITE - version {_package_version()}")
     arcann_logger.info(
         f"Launching: {step_name.capitalize()} - {phase_name.capitalize()}"
     )
