@@ -1,0 +1,7 @@
+{
+    "systems_auto": ["ch3br_cl_OPES1D_5_300K", "ch3br_cl_OPES1D_10_300K", "ch3br_cl_OPES1D_20_300K", "ch3br_cl_OPES2D_5_300K", "ch3br_cl_OPES2D_10_300K", "ch3br_cl_OPES2D_20_300K", "ch3cl_br_OPES1D_5_300K", "ch3cl_br_OPES1D_10_300K", "ch3cl_br_OPES1D_20_300K", "ch3cl_br_OPES2D_5_300K", "ch3cl_br_OPES2D_10_300K", "ch3cl_br_OPES2D_20_300K"],
+    "nnp_count": 3,
+    "nnp_program": "mace",
+    "validation/training_split": 0.2,
+    "data_format": "extxyz"
+}

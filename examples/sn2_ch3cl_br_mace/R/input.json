@@ -1,0 +1,5 @@
+{
+    "nnp_program": "mace",
+    "validation/training_split": 0.2,
+    "data_format": "extxyz"
+}

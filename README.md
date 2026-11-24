@@ -4,17 +4,16 @@
 
 ---
 
-[![GNU AGPL v3.0 License](https://img.shields.io/github/license/arcann-chem/arcann_training.svg)](https://github.com/TheoreticalChemistryGroupENS/arcann_training/blob/main/LICENSE)
+[![GNU AGPL v3.0 License](https://img.shields.io/github/license/champagnn/arcann_training.svg)](https://github.com/champagnn/arcann_training/blob/main/LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2FD4DD00209A-004976.svg)](https://doi.org/10.1039/D4DD00209A)
 [![DOI](https://img.shields.io/badge/DOI-10.48550%2FarXiv.2407.07751-b31b1b.svg)](https://doi.org/10.48550/arXiv.2407.07751)
 
-[![Unit Tests Requirements](https://github.com/arcann-chem/arcann/actions/workflows/unittests_requirements.yml/badge.svg)](https://github.com/arcann-chem/arcann/actions/workflows/unittests_requirements.yml)
-[![Unit Tests Matrix](https://github.com/arcann-chem/arcann/actions/workflows/unittests_matrix.yml/badge.svg?branch=main)](https://github.com/arcann-chem/arcann/actions/workflows/unittests_matrix.yml)
-[![Docs](https://github.com/arcann-chem/arcann/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/arcann-chem/arcann/actions/workflows/docs.yml)
+[![Unit Tests Matrix](https://github.com/champagnn/arcann_training/actions/workflows/unittests_matrix.yml/badge.svg?branch=main)](https://github.com/champagnn/arcann_training/actions/workflows/unittests_matrix.yml)
+[![Docs](https://github.com/champagnn/arcann_training/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/champagnn/arcann_training/actions/workflows/docs.yml)
 
 ---
 
-*This is fork of the [original ArcaNN repository](https://github.com/arcann-chem/arcann_training).*
+*This is a fork of the original ArcaNN repository (`arcann-chem/arcann_training`).*
 
 ---
 
@@ -26,14 +25,14 @@ The main advantages of this code are its modularity, the ability to finely tune 
 During the iterative training process, you will iteratively train neural network potentials, use them as reactive force fields for molecular dynamics simulations (to explore the phase space), select and label some configurations based on a query by committee approach, and then train neural network potentials again with an improved training set, and so forth.
 This workflow, sometimes referred to as active or concurrent learning, was heavily inspired by [DP-GEN](https://doi.org/10.1016/j.cpc.2020.107206), and we use their naming scheme for the steps of the iterative procedure.
 
-We refer the reader to the [documentation](https://arcann-chem.github.io/arcann_training/) and the accompanying paper [ArcaNN: automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials](https://doi.org/10.1039/D4DD00209A). (*The documentation has not been updated to include changes from this fork.*)
+We refer the reader to the [documentation](https://champagnn.github.io/arcann_training/) and the accompanying paper [ArcaNN: automated enhanced sampling generation of training sets for chemically reactive machine learning interatomic potentials](https://doi.org/10.1039/D4DD00209A). (*The documentation has not been updated to include changes from this fork.*)
 
 ## Installation ##
 
 Preferably, install ArcaNN in an exclusive python environment. To install it, follow these instructions:
 
 ```bash
-git clone https://github.com/TheoreticalChemistryGroupENS/arcann_training.git
+git clone https://github.com/champagnn/arcann_training.git
 pip install ./arcann_training
 ```
 
@@ -55,7 +54,7 @@ In the case of symmetrix, `--config-settings` can also be passed.
 
 ## Usage ##
 
-The [original documentation](https://arcann-chem.github.io/arcann_training/) should be read. Changes to usage of this version are explained bellow.
+The [original documentation](https://champagnn.github.io/arcann_training/) should be read. Changes to usage of this version are explained bellow.
 
 ### Dataset ###
 
@@ -82,7 +81,7 @@ python -m arcann_training initialization start
 
 ### Training ###
 
-Use the [example scripts](https://github.com/TheoreticalChemistryGroupENS/arcann_training/tree/main/examples/user_files/job_training_mace_slurm) provided to create the scripts for your HPC. Create a `mace_MACEVERSION.yaml` file (change `MACEVERSION` to the version of MACE that you want to use, e.g. `0.3.15`) configuring the model parameters. The `max_num_epochs` (default: `500`) set up in the `XXX-training/input.json` will overwrite the one in the `mace_MACEVERSION.yaml` file, it also replaces the `numb_steps` from the previous ArcaNN version. The variable `mace_model_version` (default: `0.3.14`) controls which `mace_MACEVERSION.yaml` file is expected. The `XXX-training/input.json` file can look like:
+Use the [example scripts](https://github.com/champagnn/arcann_training/tree/main/examples/user_files/job_training_mace_slurm) provided to create the scripts for your HPC. Create a `mace_MACEVERSION.yaml` file (change `MACEVERSION` to the version of MACE that you want to use, e.g. `0.3.15`) configuring the model parameters. The `max_num_epochs` (default: `500`) set up in the `XXX-training/input.json` will overwrite the one in the `mace_MACEVERSION.yaml` file, it also replaces the `numb_steps` from the previous ArcaNN version. The variable `mace_model_version` (default: `0.3.14`) controls which `mace_MACEVERSION.yaml` file is expected. The `XXX-training/input.json` file can look like:
 
 ```json
 {
@@ -110,7 +109,7 @@ The phases `compress` and `check_compress` are only mandatory when the environme
 
 *MACE is not supported on i-PI and sander.*
 
-Use the [example scripts](https://github.com/TheoreticalChemistryGroupENS/arcann_training/tree/main/examples/user_files/job_exploration_lammps_slurm) provided to create the scripts for your HPC.
+Use the [example scripts](https://github.com/champagnn/arcann_training/tree/main/examples/user_files/job_exploration_lammps_slurm) provided to create the scripts for your HPC.
 
 This phase will convert the model files, if they were not during `training compress`. All MACE pair styles in LAMMPS don't do automatic energy and force deviation. Therefore, ArcaNN will modify the provided LAMMPS inputs to do reruns using the other models, and calculate deviation on the `deviate` step.
 
