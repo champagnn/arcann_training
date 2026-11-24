@@ -139,6 +139,10 @@ jobs:
       contents: write # create the tag and the release
       actions: write # dispatch docs.yml
     steps:
+      # Before the download: checkout empties the workspace.
+      - name: Checkout
+        uses: actions/checkout@v6 # for CHANGELOG.md
+
       - name: Download distributions
         uses: actions/download-artifact@v8
         with:
@@ -176,9 +180,22 @@ jobs:
             *-*) release_type=(--prerelease --latest=false) ;;
             *)   release_type=(--latest) ;;
           esac
+          # Release body (also the Zenodo description): this version's
+          # CHANGELOG.md section written by cz bump ("## vX.Y.Z (date)", heading
+          # dropped), followed by GitHub's generated PR list. Without a section,
+          # only the generated notes are used.
+          notes="${RUNNER_TEMP}/release-notes.md"
+          awk -v v="${TAG#v}" '/^## /{f = ($2 == v || $2 == "v" v); next} f' CHANGELOG.md > "${notes}" || true
+          notes_args=()
+          if grep -q '[^[:space:]]' "${notes}"; then
+            notes_args=(--notes-file "${notes}")
+          else
+            echo "::warning::No CHANGELOG.md section for ${TAG}; using only the generated notes."
+          fi
           gh release create "${TAG}" dist/* \
             --repo "${GITHUB_REPOSITORY}" \
             --title "ArcaNN ${TAG}" \
+            "${notes_args[@]}" \
             --generate-notes \
             --verify-tag \
             "${release_type[@]}"
