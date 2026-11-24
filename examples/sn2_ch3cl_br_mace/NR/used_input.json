@@ -1,0 +1,7 @@
+{
+    "systems_auto": ["ch3br_cl_close_300K", "ch3br_cl_free_300K", "ch3br_cl_smd_300K", "ch3cl_br_close_300K", "ch3cl_br_free_300K", "ch3cl_br_smd_300K"],
+    "nnp_count": 3,
+    "nnp_program": "mace",
+    "validation/training_split": 0.2,
+    "data_format": "extxyz"
+}

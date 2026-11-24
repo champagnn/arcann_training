@@ -1,0 +1,51 @@
+seed: 2082608865
+
+E0s: {
+  1: -13.515956665048344,
+  6: -147.0997870582917,
+  7: -265.59746784567886,
+  17: -404.84382630889735,
+  35: -362.7218593267168,
+}
+model: "MACE"
+
+config_type_weights:
+  Default: 1.0
+
+num_channels: 128
+max_L: 1
+r_max: 6.0
+num_interactions: 2
+correlation: 3
+
+name: _R_MACE_MODEL_NAME
+
+model_dir: "MACE_models"
+
+train_file: _R_MACE_TRAIN_FILE
+valid_fraction: 0.10
+
+test_file: _R_MACE_TEST_FILE
+
+device: cuda
+default_dtype: "float32"
+save_cpu: no
+
+batch_size: 10
+max_num_epochs: 500
+lr: 1e-2
+
+forces_weight: 100
+energy_weight: 1
+
+swa: False
+ema: True
+ema_decay: 0.99
+amsgrad: True
+restart_latest: True
+
+scheduler_patience: 15
+patience: 10
+eval_interval: 1
+
+enable_cueq: False

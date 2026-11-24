@@ -279,7 +279,7 @@ def main(
                 arcann_logger.debug(qbc_stats)
 
                 if (local_path / "cell.txt").is_file():
-                    cell_array = np.genfromtxt(local_path / "cell.txt")
+                    cell_array = np.atleast_2d(np.genfromtxt(local_path / "cell.txt"))
                     cella = cell_array[:, 1] - cell_array[:, 0]
                     cellb = cell_array[:, 3] - cell_array[:, 2]
                     cellc = cell_array[:, 5] - cell_array[:, 4]
