@@ -22,8 +22,9 @@ Covered:
 - inconsistent inputs (wrong pair_style for the model, swapped placeholders) stop prepare;
 - a non-polar MACE input still keeps its pair_style options in the reruns.
 
-Run from the repository root (not part of the pre-commit unit tests, it takes a few seconds per run):
-    python -m unittest discover -s tests/mock -v
+Not collected by the unit tests (pre-commit, CI, 'unittest discover', 'pytest'): the file name does not
+match 'test*.py' on purpose, it takes about a minute. Run it explicitly from the repository root:
+    python tests/mock/mock_polarmace_inputs.py -v
 Set ARCANN_MOCK_KEEP=1 to keep the generated directories (their path is printed) for inspection.
 """
 
