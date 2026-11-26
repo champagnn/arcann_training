@@ -18,6 +18,8 @@ pair_coeff       * * _R_ATOM_LABELS_
 #pair_coeff      * * _R_MODEL_FILES_ _R_ATOM_LABELS_
 #pair_style      symmetrix/mace
 #pair_coeff      * * _R_MODEL_FILES_ _R_ATOM_LABELS_
+#pair_style      symmetrix/mace/polar charge _R_CHARGE_ spin _R_TOTAL_SPIN_ # PolarMACE models only (experimental)
+#pair_coeff      * * _R_MODEL_FILES_ _R_ATOM_LABELS_
 
 timestep _R_TIMESTEP_
 

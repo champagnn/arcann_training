@@ -53,9 +53,11 @@ from arcann_training.common.xml import (
     xml_to_string_list,
 )
 from arcann_training.exploration.utils import (
+    check_polar_pair_options,
     create_models_list,
     generate_input_exploration_json,
     generate_starting_points,
+    get_system_charge_spin,
     get_system_exploration,
     update_system_nb_steps_factor,
 )
@@ -145,6 +147,14 @@ def main(
     else:
         arcann_logger.error("Run training first before the first exploration phase!")
         sys.exit(1)
+
+    # The previous labeling holds the per-system charge/total_spin (needed for PolarMACE)
+    if curr_iter > 1 and (control_path / f"labeling_{padded_prev_iter}.json").is_file():
+        previous_labeling_json = load_json_file(
+            control_path / f"labeling_{padded_prev_iter}.json"
+        )
+    else:
+        previous_labeling_json = {}
 
     arcann_logger.debug(f"previous_training_json: {previous_training_json}")
     arcann_logger.debug(f"previous_exploration_json: {previous_exploration_json}")
@@ -371,6 +381,40 @@ def main(
             arcann_logger.info(
                 f"LAMMPS pair_style identified: {lmp_input_handler.lmp_pair.value} -- {system_auto}"
             )
+
+            # PolarMACE models only run with the symmetrix polar pair_style, and vice versa
+            polar_mace = main_json.get("polar_mace", False)
+            if polar_mace and not lmp_input_handler.is_polar:
+                raise ValueError(
+                    f"PolarMACE model detected, but the LAMMPS input does not use 'pair_style symmetrix/mace/polar': {lmp_input_handler.input_file}"
+                )
+            if lmp_input_handler.is_polar and not polar_mace:
+                raise ValueError(
+                    f"'pair_style symmetrix/mace/polar' used in LAMMPS input, but the model is not a PolarMACE: {lmp_input_handler.input_file}"
+                )
+
+            if lmp_input_handler.is_polar:
+                charge_spin = get_system_charge_spin(
+                    system_auto,
+                    system_auto_index,
+                    len(main_json["systems_auto"]),
+                    user_input_json,
+                    previous_labeling_json,
+                    previous_exploration_json,
+                )
+                exploration_json["systems_auto"][system_auto].update(charge_spin)
+                input_replace_dict["_R_CHARGE_"] = str(charge_spin["charge"])
+                input_replace_dict["_R_TOTAL_SPIN_"] = str(charge_spin["total_spin"])
+                arcann_logger.info(
+                    f"PolarMACE charge: {charge_spin['charge']}, total spin: {charge_spin['total_spin']} -- {system_auto}"
+                )
+
+                check_polar_pair_options(
+                    lmp_input_handler.polar_options(),
+                    charge_spin,
+                    system_auto,
+                    lmp_input_handler.input_file,
+                )
 
             plumed[0] = lmp_input_handler.has_plumed()
 

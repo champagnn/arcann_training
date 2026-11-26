@@ -39,6 +39,7 @@ from arcann_training.common.machine import (
 from arcann_training.common.slurm import replace_in_slurm_file_general
 from arcann_training.common.xyz import parse_xyz_trajectory_file, write_xyz_frame
 from arcann_training.labeling.utils import (
+    apply_exploration_charge_spin,
     generate_input_labeling_json,
     get_system_labeling,
 )
@@ -189,6 +190,10 @@ def main(
         default_input_json,
         current_input_json,
         main_json,
+    )
+    # PolarMACE: carry the charge/total_spin the systems were explored with, unless set in the input
+    current_input_json = apply_exploration_charge_spin(
+        current_input_json, user_input_json, exploration_json, main_json
     )
     arcann_logger.debug(f"current_input_json: {current_input_json}")
 
@@ -386,7 +391,7 @@ def main(
                 "System auto list and system auto index do not match. PLEASE REPORT THIS BUG."
             )
             arcann_logger.error("Aborting...")
-            return
+            return 1
 
         system_master_job_file[0] = replace_substring_in_string_list(
             system_master_job_file[0],

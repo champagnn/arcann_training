@@ -972,3 +972,165 @@ def update_system_nb_steps_factor(previous_json: Dict, system_auto_index: int) -
             * previous_json["systems_auto"][system_auto_index]["nb_steps"]
             * previous_json["systems_auto"][system_auto_index]["timestep_ps"]
         )
+
+
+# Fallback when no charge/total_spin is known for a system: neutral singlet (same as the labeling defaults)
+POLAR_DEFAULT_CHARGE_SPIN = {"charge": 0, "total_spin": 1}
+
+
+def get_system_charge_spin(
+    system_auto: str,
+    system_auto_index: int,
+    system_count: int,
+    user_input_json: Dict,
+    previous_labeling_json: Dict,
+    previous_exploration_json: Dict,
+) -> Dict[str, int]:
+    """
+    Get the total charge and total spin (multiplicity) of a system for a PolarMACE exploration.
+
+    Each value is taken, by priority, from: the exploration input ('systems_charge'/'systems_total_spin',
+    one value per system), the previous labeling, the previous exploration, and finally the defaults
+    (charge 0, total spin 1) with a warning.
+
+    Parameters
+    ----------
+    system_auto : str
+        The name of the system.
+    system_auto_index : int
+        The index of the system in 'systems_auto'.
+    system_count : int
+        The number of systems in 'systems_auto'.
+    user_input_json : dict
+        The exploration input JSON provided by the user.
+    previous_labeling_json : dict
+        The labeling control JSON of the previous iteration (empty if none).
+    previous_exploration_json : dict
+        The exploration control JSON of the previous iteration (empty if none).
+
+    Returns
+    -------
+    dict
+        Mapping 'charge' and 'total_spin' to their integer value.
+
+    Raises
+    ------
+    TypeError
+        If a value from the exploration input is not an integer.
+    ValueError
+        If the exploration input list does not have one value per system.
+    """
+    arcann_logger = logging.getLogger("ArcaNN")
+
+    values = {}
+    for control_key, input_key in [
+        ("charge", "systems_charge"),
+        ("total_spin", "systems_total_spin"),
+    ]:
+        labeling_value = (
+            previous_labeling_json.get("systems_auto", {})
+            .get(system_auto, {})
+            .get(control_key)
+        )
+        user_value = user_input_json.get(input_key)
+
+        if user_value is not None and user_value != "default":
+            if isinstance(user_value, List) and len(user_value) != system_count:
+                error_msg = (
+                    f"{input_key}: Size mismatch: there must be one value per system."
+                )
+                raise ValueError(error_msg)
+            value = (
+                user_value[system_auto_index]
+                if isinstance(user_value, List)
+                else user_value
+            )
+            if isinstance(value, bool) or not isinstance(value, int):
+                error_msg = f"'{input_key}' must be an integer or a list of integers (one per system), got: {user_value}"
+                raise TypeError(error_msg)
+        elif labeling_value is not None:
+            value = labeling_value
+        elif (
+            previous_exploration_json.get("systems_auto", {})
+            .get(system_auto, {})
+            .get(control_key)
+            is not None
+        ):
+            value = previous_exploration_json["systems_auto"][system_auto][control_key]
+        else:
+            value = POLAR_DEFAULT_CHARGE_SPIN[control_key]
+            arcann_logger.warning(
+                f"No {control_key} known for '{system_auto}' (no exploration input '{input_key}', no previous "
+                f"labeling or exploration), using {value}. Set '{input_key}' in the exploration input if it is wrong."
+            )
+
+        if labeling_value is not None and value != labeling_value:
+            arcann_logger.warning(
+                f"{control_key} of '{system_auto}' for the exploration ({value}) differs from the previous "
+                f"labeling ({labeling_value}): the explored structures do not match the labeled ones."
+            )
+        values[control_key] = int(value)
+
+    return values
+
+
+def check_polar_pair_options(
+    options: Dict[str, str],
+    charge_spin: Dict[str, int],
+    system_auto: str,
+    input_file: Union[str, Path],
+) -> None:
+    """
+    Check the 'charge'/'spin' values of a symmetrix/mace/polar pair_style against the system's charge/total_spin.
+
+    Each value must be its placeholder ('_R_CHARGE_'/'_R_TOTAL_SPIN_') or a number equal to the expected value.
+    A missing keyword, a LAMMPS variable or a different number only gives a warning.
+
+    Parameters
+    ----------
+    options : dict
+        The 'charge'/'spin' values written in the pair_style line (see LAMMPSInputHandler.polar_options).
+    charge_spin : dict
+        The expected 'charge' and 'total_spin' of the system.
+    system_auto : str
+        The name of the system.
+    input_file : str or Path
+        The LAMMPS input file, for the messages.
+
+    Raises
+    ------
+    ValueError
+        If a keyword is followed by the wrong placeholder (e.g. 'charge _R_TOTAL_SPIN_').
+    """
+    arcann_logger = logging.getLogger("ArcaNN")
+
+    for keyword, control_key, placeholder in [
+        ("charge", "charge", "_R_CHARGE_"),
+        ("spin", "total_spin", "_R_TOTAL_SPIN_"),
+    ]:
+        written = options.get(keyword)
+        expected = charge_spin[control_key]
+        if written is None:
+            arcann_logger.warning(
+                f"No '{keyword}' in the symmetrix/mace/polar pair_style, LAMMPS will use its default "
+                f"instead of {expected}: {input_file}"
+            )
+        elif written.startswith("_R_"):
+            if written != placeholder:
+                error_msg = f"'{keyword} {written}' in the symmetrix/mace/polar pair_style, use '{keyword} {placeholder}': {input_file}"
+                raise ValueError(error_msg)
+        elif written.startswith(("$", "v_")):
+            arcann_logger.warning(
+                f"'{keyword} {written}' in the symmetrix/mace/polar pair_style is a LAMMPS variable, ArcaNN cannot "
+                f"check it against the {control_key} of '{system_auto}' ({expected}): {input_file}"
+            )
+        else:
+            try:
+                matches = float(written) == expected
+            except ValueError:
+                matches = False
+            if not matches:
+                arcann_logger.warning(
+                    f"'{keyword} {written}' in the symmetrix/mace/polar pair_style differs from the "
+                    f"{control_key} of '{system_auto}' ({expected}): {input_file}"
+                )

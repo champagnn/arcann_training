@@ -17,13 +17,19 @@ TestReadLammpsData():
 """
 
 # Standard library modules
+import tempfile
 import unittest
+from pathlib import Path
 
 # Third-party modules
 import numpy as np
 
 # Local imports
-from arcann_training.common.lammps import read_lammps_data
+from arcann_training.common.lammps import (
+    LAMMPSInputHandler,
+    LAMMPSPair,
+    read_lammps_data,
+)
 
 
 class TestReadLammpsData(unittest.TestCase):
@@ -300,6 +306,199 @@ class TestReadLammpsData(unittest.TestCase):
         ]
         with self.assertRaises(ValueError):
             read_lammps_data(data)
+
+
+class TestLAMMPSInputHandlerPairLines(unittest.TestCase):
+    """
+    Test case for the pair_style handling of 'LAMMPSInputHandler' (style detection and committee reruns).
+    """
+
+    template = """units metal
+atom_style atomic
+read_data _R_DATA_FILE_
+{pair}
+fix 1 all nve
+run _R_NUMBER_OF_STEPS_
+write_restart _R_RESTART_OUT_
+"""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def make_handler(self, pair: str) -> LAMMPSInputHandler:
+        lmp_input = Path(self.temp_dir.name) / "SYS.in"
+        lmp_input.write_text(self.template.format(pair=pair))
+        return LAMMPSInputHandler(lmp_input, ["H", "O"])
+
+    def rerun_part(self, handler: LAMMPSInputHandler) -> str:
+        handler.set_models(["m1.json", "m2.json", "m3.json"])
+        return handler.raw_text.split("Rerun with 2nd model")[1]
+
+    def test_symmetrix_polar_options_kept_in_rerun(self):
+        """
+        The options of the user's pair_style line must be kept in the reruns, with the model swapped.
+        """
+        handler = self.make_handler(
+            "pair_style symmetrix/mace/polar charge _R_CHARGE_ spin _R_TOTAL_SPIN_ mesh 0.5 # comment\n"
+            "pair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.SYMMETRIX)
+        self.assertTrue(handler.is_polar)
+        self.assertEqual(
+            handler.polar_options(), {"charge": "_R_CHARGE_", "spin": "_R_TOTAL_SPIN_"}
+        )
+        rerun = self.rerun_part(handler)
+        self.assertIn(
+            "pair_style symmetrix/mace/polar charge _R_CHARGE_ spin _R_TOTAL_SPIN_ mesh 0.5\n"
+            "pair_coeff * * m2.json H O",
+            rerun,
+        )
+        self.assertNotIn("comment", rerun)
+        self.assertIn("pair_coeff * * m3.json H O", rerun)
+        self.assertNotIn("m1.json", rerun.split("rerun SYS_mace_run_model1")[0])
+        # Placeholders left in the reruns are filled with the rest of the input
+        filled = handler.apply_variables({"_R_CHARGE_": "-1", "_R_TOTAL_SPIN_": "2"})
+        self.assertEqual(
+            filled.count("pair_style symmetrix/mace/polar charge -1 spin 2 mesh 0.5"), 3
+        )
+
+    def test_hardcoded_polar_options(self):
+        handler = self.make_handler(
+            "pair_style symmetrix/mace/polar/kk charge -2\npair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        self.assertTrue(handler.is_polar)
+        self.assertEqual(handler.polar_options(), {"charge": "-2"})
+
+    def test_symmetrix_not_polar(self):
+        handler = self.make_handler(
+            "pair_style symmetrix/mace\npair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.SYMMETRIX)
+        self.assertFalse(handler.is_polar)
+        self.assertEqual(handler.polar_options(), {})
+
+    def test_mace_options_kept_in_rerun(self):
+        handler = self.make_handler(
+            "pair_style mace no_domain_decomposition\npair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.MACE)
+        self.assertIn(
+            "pair_style mace no_domain_decomposition\npair_coeff * * m2.json H O",
+            self.rerun_part(handler),
+        )
+
+    def test_mliap_model_in_pair_style(self):
+        handler = self.make_handler(
+            "pair_style mliap unified _R_MODEL_FILES_ 0\npair_coeff * * _R_ATOM_LABELS_"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.MLIAP)
+        self.assertIn(
+            "pair_style mliap unified m2.json 0\npair_coeff * * H O",
+            self.rerun_part(handler),
+        )
+
+    def test_commented_pair_lines_ignored(self):
+        handler = self.make_handler(
+            "#pair_style mace\n#pair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_\n"
+            "pair_style symmetrix/mace\npair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        rerun = self.rerun_part(handler)
+        self.assertIn("pair_style symmetrix/mace\npair_coeff * * m2.json H O", rerun)
+        self.assertNotIn("pair_style mace", rerun)
+
+    def test_missing_model_placeholder(self):
+        """
+        A hardcoded model would make every committee member rerun the same model.
+        """
+        for pair in [
+            "pair_style mace\npair_coeff * * model.pt H O",
+            "pair_style mliap unified model.pt 0\npair_coeff * * H O",
+            "pair_style symmetrix/mace\npair_coeff * * model.json H O",
+            "pair_style symmetrix/mace/polar\npair_coeff * * model.json H O",
+        ]:
+            with self.subTest(pair=pair), self.assertRaises(ValueError):
+                self.make_handler(pair)
+
+    def test_continued_pair_style(self):
+        """
+        A pair_style continued with '&' must be kept whole in the reruns.
+        """
+        handler = self.make_handler(
+            "pair_style symmetrix/mace/polar charge _R_CHARGE_ &\n"
+            "    spin _R_TOTAL_SPIN_ &\n"
+            "    mesh 0.5\n"
+            "pair_coeff * * &\n"
+            "    _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        self.assertEqual(
+            handler.polar_options(), {"charge": "_R_CHARGE_", "spin": "_R_TOTAL_SPIN_"}
+        )
+        self.assertIn(
+            "pair_style symmetrix/mace/polar charge _R_CHARGE_ spin _R_TOTAL_SPIN_ mesh 0.5\n"
+            "pair_coeff * * m2.json H O\n",
+            self.rerun_part(handler),
+        )
+
+    def test_polar_cuda(self):
+        handler = self.make_handler(
+            "pair_style symmetrix/mace/polar/cuda charge _R_CHARGE_ spin _R_TOTAL_SPIN_ grid local float32-mixed\n"
+            "pair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.SYMMETRIX)
+        self.assertTrue(handler.is_polar)
+        self.assertEqual(
+            handler.polar_options(), {"charge": "_R_CHARGE_", "spin": "_R_TOTAL_SPIN_"}
+        )
+        self.assertIn(
+            "pair_style symmetrix/mace/polar/cuda charge _R_CHARGE_ spin _R_TOTAL_SPIN_ grid local float32-mixed\n"
+            "pair_coeff * * m2.json H O",
+            self.rerun_part(handler),
+        )
+
+    def test_kokkos_variants_not_polar(self):
+        for pair, family in [
+            ("mace/kk", LAMMPSPair.MACE),
+            ("symmetrix/mace/kk", LAMMPSPair.SYMMETRIX),
+        ]:
+            with self.subTest(pair=pair):
+                handler = self.make_handler(
+                    f"pair_style {pair}\npair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+                )
+                self.assertEqual(handler.lmp_pair, family)
+                self.assertFalse(handler.is_polar)
+                self.assertIn(
+                    f"pair_style {pair}\npair_coeff * * m2.json H O",
+                    self.rerun_part(handler),
+                )
+
+    def test_deepmd_no_rerun(self):
+        """
+        DeepMD evaluates the whole committee in one run: no rerun blocks and no
+        '_R_MODEL_FILES_' requirement in pair_coeff.
+        """
+        handler = self.make_handler(
+            "pair_style deepmd _R_MODEL_FILES_ out_freq _R_PRINT_FREQ_ out_file _R_DEVI_OUT_\n"
+            "pair_coeff * *"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.DEEPMD)
+        self.assertFalse(handler.is_polar)
+        handler.set_models(["m1.pb", "m2.pb", "m3.pb"])
+        self.assertIn("pair_style deepmd m1.pb m2.pb m3.pb out_freq", handler.raw_text)
+        self.assertNotIn("rerun", handler.raw_text)
+        self.assertNotIn("store/force", handler.raw_text)
+
+    def test_deepmd_hardcoded_models_allowed(self):
+        handler = self.make_handler(
+            "pair_style deepmd m1.pb m2.pb out_freq 10 out_file devi.out\npair_coeff * *"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.DEEPMD)
+
+    def test_unsupported_pair_style(self):
+        with self.assertRaises(ValueError):
+            self.make_handler("pair_style lj/cut 2.5\npair_coeff * * 1.0 1.0")
 
 
 if __name__ == "__main__":

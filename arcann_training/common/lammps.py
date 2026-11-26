@@ -229,7 +229,7 @@ class LAMMPSPair(StrEnum):
             return cls(value)
         except ValueError:
             raise ValueError(
-                f"ArcaNN does not support the pair_style: {value}. Please use mace, mliap, or symmetrix/mace (Kokkos versions are allowed)."
+                f"ArcaNN does not support the pair_style: {value}. Please use mace, mliap, symmetrix/mace or symmetrix/mace/polar (Kokkos versions are allowed)."
             ) from None
 
 
@@ -314,34 +314,80 @@ class LAMMPSInputHandler:
         """
         return self._lmp_input.read_text()
 
+    @staticmethod
+    def _logical_lines(text: str) -> list[str]:
+        """
+        Split a LAMMPS input into commands: comments removed, lines ending with '&' joined to the next one.
+
+        Parameters
+        ----------
+        text : str
+            The LAMMPS input text.
+
+        Returns
+        -------
+        list of str
+            The non-empty commands, with single spaces between the words.
+        """
+        # As LAMMPS: a line whose last printable character is '&' continues on the next one,
+        # comments ('#' to the end of the command) are removed after joining
+        commands, current = [], []
+        for line in text.splitlines() + [""]:
+            line = line.rstrip()
+            if line.endswith("&"):
+                current.append(line[:-1])
+                continue
+            current.append(line)
+            command = " ".join(" ".join(current).split("#")[0].split())
+            if command:
+                commands.append(command)
+            current = []
+        return commands
+
     @catch_errors_decorator
     def _parse_metadata(self) -> None:
         """
         Extract metadata from the LAMMPS input.
 
         Metadata includes:
-        - LAMMPS pair style
-        - Domain decomposition (for MACE)
+        - LAMMPS pair style (and whether it is the symmetrix PolarMACE one)
+        - The pair_style/pair_coeff lines, reused for the committee reruns
         - PLUMED usage
 
         Raises
         ------
         ValueError
-            If no pair_style is found in the input.
+            If no pair_style is found in the input, or if a MACE input does not use
+            '_R_MODEL_FILES_' in its pair_style/pair_coeff lines.
         """
         # Extract pair_style
         pair_style_match = re.search(
-            r"^\s*(?!#)pair_style\s+([^\s/]+)", self._raw_text, re.MULTILINE
+            r"^\s*(?!#)pair_style\s+(\S+)", self._raw_text, re.MULTILINE
         )
         if not pair_style_match:
             raise ValueError(f"No pair_style found in {self._lmp_input}")
 
-        self._lmp_pair = LAMMPSPair.from_string(pair_style_match.group(1))
+        # Full style name (e.g. symmetrix/mace/polar/kk), the family is the part before the first '/'
+        self._pair_style_name = pair_style_match.group(1)
+        self._lmp_pair = LAMMPSPair.from_string(self._pair_style_name.split("/")[0])
+        self._polar = (
+            re.match(r"symmetrix/mace/polar(/|$)", self._pair_style_name) is not None
+        )
 
-        # Determine domain decomposition for MACE
-        self.domain_decomp = None
-        if self._lmp_pair == LAMMPSPair.MACE:
-            self.domain_decomp = "no_domain_decomposition" in self._raw_text
+        # Keep the user's pair_style/pair_coeff lines verbatim (options included), they are reused
+        # as-is in the reruns of the other committee models, only the model file changes
+        self._pair_lines = [
+            line
+            for line in self._logical_lines(self._raw_text)
+            if re.match(r"pair_(style|coeff)\s", line)
+        ]
+        if self._lmp_pair != LAMMPSPair.DEEPMD and not any(
+            "_R_MODEL_FILES_" in line for line in self._pair_lines
+        ):
+            raise ValueError(
+                f"'_R_MODEL_FILES_' not found in the pair_style/pair_coeff lines of {self._lmp_input}: "
+                "ArcaNN needs it to set the model of each committee member."
+            )
 
         self._plumed = (
             True
@@ -456,6 +502,38 @@ class LAMMPSInputHandler:
         return self._lmp_pair
 
     @property
+    def is_polar(self) -> bool:
+        """
+        Check if the pair style is the symmetrix PolarMACE one (symmetrix/mace/polar[/kk|/cuda]).
+
+        Returns
+        -------
+        bool
+            True if a symmetrix PolarMACE pair style is used, False otherwise.
+        """
+        return self._polar
+
+    def polar_options(self) -> dict[str, str]:
+        """
+        Get the 'charge' and 'spin' values written in the pair_style line.
+
+        Returns
+        -------
+        dict of str
+            Mapping 'charge'/'spin' to the value that follows the keyword (may be a placeholder),
+            only for the keywords present in the line.
+        """
+        options = {}
+        for line in self._pair_lines:
+            tokens = line.split()
+            if tokens[0] != "pair_style":
+                continue
+            for keyword in ("charge", "spin"):
+                if keyword in tokens[2:-1]:
+                    options[keyword] = tokens[tokens.index(keyword, 2) + 1]
+        return options
+
+    @property
     def raw_text(self) -> str:
         """
         Get the preprocessed raw LAMMPS input text.
@@ -529,14 +607,12 @@ rerun {self._lmp_input.stem}_mace_run_model1.lammpstrj dump x y z
 """
 
     def _get_pair_lmp_string(self, model: str) -> str:
+        """Return the user's pair_style/pair_coeff lines, with the model set to the given one."""
         elements = " ".join(self._el)
-        match self.lmp_pair:
-            case LAMMPSPair.MACE:
-                return f"pair_style mace {'no_domain_decomposition' if self.domain_decomp else ''}\npair_coeff * * {model} {elements}"
-            case LAMMPSPair.MLIAP:
-                return f"pair_style mliap unified {model} 0\npair_coeff * * {elements}"
-            case LAMMPSPair.SYMMETRIX:
-                return f"pair_style symmetrix/mace\npair_coeff * * {model} {elements}"
+        return "\n".join(
+            line.replace("_R_MODEL_FILES_", model).replace("_R_ATOM_LABELS_", elements)
+            for line in self._pair_lines
+        )
 
 
 def to_ordinal(n):
