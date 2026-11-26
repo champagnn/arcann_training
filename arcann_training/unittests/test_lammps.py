@@ -413,10 +413,72 @@ write_restart _R_RESTART_OUT_
         """
         A hardcoded model would make every committee member rerun the same model.
         """
+        for pair in [
+            "pair_style mace\npair_coeff * * model.pt H O",
+            "pair_style mliap unified model.pt 0\npair_coeff * * H O",
+            "pair_style symmetrix/mace\npair_coeff * * model.json H O",
+            "pair_style symmetrix/mace/polar\npair_coeff * * model.json H O",
+        ]:
+            with self.subTest(pair=pair), self.assertRaises(ValueError):
+                self.make_handler(pair)
+
+    def test_polar_cuda(self):
+        handler = self.make_handler(
+            "pair_style symmetrix/mace/polar/cuda charge _R_CHARGE_ spin _R_TOTAL_SPIN_ grid local float32-mixed\n"
+            "pair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.SYMMETRIX)
+        self.assertTrue(handler.is_polar)
+        self.assertEqual(
+            handler.polar_options(), {"charge": "_R_CHARGE_", "spin": "_R_TOTAL_SPIN_"}
+        )
+        self.assertIn(
+            "pair_style symmetrix/mace/polar/cuda charge _R_CHARGE_ spin _R_TOTAL_SPIN_ grid local float32-mixed\n"
+            "pair_coeff * * m2.json H O",
+            self.rerun_part(handler),
+        )
+
+    def test_kokkos_variants_not_polar(self):
+        for pair, family in [
+            ("mace/kk", LAMMPSPair.MACE),
+            ("symmetrix/mace/kk", LAMMPSPair.SYMMETRIX),
+        ]:
+            with self.subTest(pair=pair):
+                handler = self.make_handler(
+                    f"pair_style {pair}\npair_coeff * * _R_MODEL_FILES_ _R_ATOM_LABELS_"
+                )
+                self.assertEqual(handler.lmp_pair, family)
+                self.assertFalse(handler.is_polar)
+                self.assertIn(
+                    f"pair_style {pair}\npair_coeff * * m2.json H O",
+                    self.rerun_part(handler),
+                )
+
+    def test_deepmd_no_rerun(self):
+        """
+        DeepMD evaluates the whole committee in one run: no rerun blocks and no
+        '_R_MODEL_FILES_' requirement in pair_coeff.
+        """
+        handler = self.make_handler(
+            "pair_style deepmd _R_MODEL_FILES_ out_freq _R_PRINT_FREQ_ out_file _R_DEVI_OUT_\n"
+            "pair_coeff * *"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.DEEPMD)
+        self.assertFalse(handler.is_polar)
+        handler.set_models(["m1.pb", "m2.pb", "m3.pb"])
+        self.assertIn("pair_style deepmd m1.pb m2.pb m3.pb out_freq", handler.raw_text)
+        self.assertNotIn("rerun", handler.raw_text)
+        self.assertNotIn("store/force", handler.raw_text)
+
+    def test_deepmd_hardcoded_models_allowed(self):
+        handler = self.make_handler(
+            "pair_style deepmd m1.pb m2.pb out_freq 10 out_file devi.out\npair_coeff * *"
+        )
+        self.assertEqual(handler.lmp_pair, LAMMPSPair.DEEPMD)
+
+    def test_unsupported_pair_style(self):
         with self.assertRaises(ValueError):
-            self.make_handler(
-                "pair_style symmetrix/mace\npair_coeff * * model.json H O"
-            )
+            self.make_handler("pair_style lj/cut 2.5\npair_coeff * * 1.0 1.0")
 
 
 if __name__ == "__main__":
