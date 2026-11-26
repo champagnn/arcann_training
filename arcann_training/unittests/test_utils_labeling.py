@@ -26,6 +26,7 @@ import unittest
 
 # Local imports
 from arcann_training.labeling.utils import (
+    apply_exploration_charge_spin,
     generate_input_labeling_json,
     get_system_labeling,
 )
@@ -171,6 +172,56 @@ class TestGetSystemLabelingPolarMace(unittest.TestCase):
         )
         self.assertEqual(charge, 1)
         self.assertEqual(total_spin, 3)
+
+
+class TestApplyExplorationChargeSpin(unittest.TestCase):
+    """
+    Test case for the 'apply_exploration_charge_spin' function.
+    """
+
+    main_json = {"systems_auto": ["SYS1", "SYS2"]}
+    # SYS2 explored without PolarMACE values (e.g. not explored with LAMMPS)
+    exploration_json = {
+        "systems_auto": {"SYS1": {"charge": -1, "total_spin": 2}, "SYS2": {}}
+    }
+
+    def merged(self):
+        return {"systems_charge": [0, 3], "systems_total_spin": [1, 1]}
+
+    def test_inherit_when_not_set(self):
+        """
+        Without a labeling input, the exploration values win over the previous labeling/defaults.
+        """
+        result = apply_exploration_charge_spin(
+            self.merged(),
+            {"systems_charge": "default"},
+            self.exploration_json,
+            self.main_json,
+        )
+        self.assertEqual(result["systems_charge"], [-1, 3])
+        self.assertEqual(result["systems_total_spin"], [2, 1])
+
+    def test_user_input_kept_with_warning(self):
+        with self.assertLogs("ArcaNN", level="WARNING") as logs:
+            result = apply_exploration_charge_spin(
+                self.merged(),
+                {"systems_charge": [0, 3]},
+                self.exploration_json,
+                self.main_json,
+            )
+        self.assertEqual(result["systems_charge"], [0, 3])
+        self.assertEqual(result["systems_total_spin"], [2, 1])
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("SYS1", logs.output[0])
+
+    def test_not_polar(self):
+        result = apply_exploration_charge_spin(
+            self.merged(),
+            {},
+            {"systems_auto": {"SYS1": {}, "SYS2": {}}},
+            self.main_json,
+        )
+        self.assertEqual(result, self.merged())
 
 
 if __name__ == "__main__":

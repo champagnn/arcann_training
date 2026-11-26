@@ -31,6 +31,7 @@ import numpy as np
 
 # Local imports
 from arcann_training.exploration.utils import (
+    check_polar_pair_options,
     create_models_list,
     get_last_frame_number,
     get_system_charge_spin,
@@ -207,6 +208,7 @@ class TestGetSystemChargeSpin(unittest.TestCase):
             result = get_system_charge_spin(
                 "SYS1",
                 0,
+                2,
                 {"systems_charge": [-1, 0], "systems_total_spin": 1},
                 self.labeling,
                 self.exploration,
@@ -217,26 +219,66 @@ class TestGetSystemChargeSpin(unittest.TestCase):
         self.assertIn("total_spin", logs.output[0])
 
     def test_labeling_before_exploration(self):
-        result = get_system_charge_spin("SYS1", 0, {}, self.labeling, self.exploration)
+        result = get_system_charge_spin(
+            "SYS1", 0, 1, {}, self.labeling, self.exploration
+        )
         self.assertEqual(result, {"charge": -1, "total_spin": 2})
 
     def test_previous_exploration(self):
         result = get_system_charge_spin(
-            "SYS1", 0, {"systems_charge": "default"}, {}, self.exploration
+            "SYS1", 0, 1, {"systems_charge": "default"}, {}, self.exploration
         )
         self.assertEqual(result, {"charge": 1, "total_spin": 3})
 
     def test_default_with_warning(self):
         with self.assertLogs("ArcaNN", level="WARNING") as logs:
-            result = get_system_charge_spin("SYS2", 1, {}, self.labeling, {})
+            result = get_system_charge_spin("SYS2", 1, 2, {}, self.labeling, {})
         self.assertEqual(result, {"charge": 0, "total_spin": 1})
         self.assertEqual(len(logs.output), 2)
 
     def test_invalid_user_input(self):
         with self.assertRaises(TypeError):
-            get_system_charge_spin("SYS1", 0, {"systems_charge": [1.5]}, {}, {})
+            get_system_charge_spin("SYS1", 0, 1, {"systems_charge": [1.5]}, {}, {})
+        # One value per system: too short and too long lists are refused
         with self.assertRaises(ValueError):
-            get_system_charge_spin("SYS1", 1, {"systems_charge": [1]}, {}, {})
+            get_system_charge_spin("SYS1", 1, 2, {"systems_charge": [1]}, {}, {})
+        with self.assertRaises(ValueError):
+            get_system_charge_spin("SYS1", 0, 2, {"systems_charge": [1, 0, -1]}, {}, {})
+
+
+class TestCheckPolarPairOptions(unittest.TestCase):
+    """
+    Test case for the 'check_polar_pair_options' function.
+    """
+
+    charge_spin = {"charge": -1, "total_spin": 2}
+
+    def check(self, options):
+        check_polar_pair_options(options, self.charge_spin, "SYS1", "SYS1.in")
+
+    def test_placeholders(self):
+        with self.assertNoLogs("ArcaNN", level="WARNING"):
+            self.check({"charge": "_R_CHARGE_", "spin": "_R_TOTAL_SPIN_"})
+
+    def test_swapped_placeholders(self):
+        with self.assertRaises(ValueError):
+            self.check({"charge": "_R_TOTAL_SPIN_", "spin": "_R_CHARGE_"})
+
+    def test_matching_numbers(self):
+        with self.assertNoLogs("ArcaNN", level="WARNING"):
+            self.check({"charge": "-1", "spin": "+2"})
+        with self.assertNoLogs("ArcaNN", level="WARNING"):
+            self.check({"charge": "-1.0", "spin": "2"})
+
+    def test_mismatch_missing_and_variable(self):
+        with self.assertLogs("ArcaNN", level="WARNING") as logs:
+            self.check({"charge": "1", "spin": "abc"})
+        self.assertEqual(len(logs.output), 2)
+        with self.assertLogs("ArcaNN", level="WARNING") as logs:
+            self.check({"charge": "${q}"})
+        self.assertEqual(len(logs.output), 2)
+        self.assertIn("variable", logs.output[0])
+        self.assertIn("No 'spin'", logs.output[1])
 
 
 if __name__ == "__main__":

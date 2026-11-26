@@ -53,6 +53,7 @@ from arcann_training.common.xml import (
     xml_to_string_list,
 )
 from arcann_training.exploration.utils import (
+    check_polar_pair_options,
     create_models_list,
     generate_input_exploration_json,
     generate_starting_points,
@@ -396,6 +397,7 @@ def main(
                 charge_spin = get_system_charge_spin(
                     system_auto,
                     system_auto_index,
+                    len(main_json["systems_auto"]),
                     user_input_json,
                     previous_labeling_json,
                     previous_exploration_json,
@@ -407,24 +409,12 @@ def main(
                     f"PolarMACE charge: {charge_spin['charge']}, total spin: {charge_spin['total_spin']} -- {system_auto}"
                 )
 
-                # Values written directly in the pair_style line (instead of the placeholders)
-                for keyword, control_key in [
-                    ("charge", "charge"),
-                    ("spin", "total_spin"),
-                ]:
-                    written = lmp_input_handler.polar_options().get(keyword)
-                    if written is None:
-                        arcann_logger.warning(
-                            f"No '{keyword}' in the symmetrix/mace/polar pair_style, LAMMPS will use its default "
-                            f"instead of {charge_spin[control_key]}: {lmp_input_handler.input_file}"
-                        )
-                    elif not written.startswith("_R_") and written != str(
-                        charge_spin[control_key]
-                    ):
-                        arcann_logger.warning(
-                            f"'{keyword} {written}' in the symmetrix/mace/polar pair_style differs from the "
-                            f"{control_key} of '{system_auto}' ({charge_spin[control_key]}): {lmp_input_handler.input_file}"
-                        )
+                check_polar_pair_options(
+                    lmp_input_handler.polar_options(),
+                    charge_spin,
+                    system_auto,
+                    lmp_input_handler.input_file,
+                )
 
             plumed[0] = lmp_input_handler.has_plumed()
 

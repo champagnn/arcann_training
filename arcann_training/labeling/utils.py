@@ -226,3 +226,60 @@ def get_system_labeling(
         ]
     )
     return tuple(system_values)
+
+
+def apply_exploration_charge_spin(
+    merged_input_json: Dict,
+    user_input_json: Dict,
+    exploration_json: Dict,
+    main_json: Dict,
+) -> Dict:
+    """
+    Use the charge/total_spin of this iteration's PolarMACE exploration for the labeling, unless set in the labeling input.
+
+    The exploration of a PolarMACE model records the charge/total_spin it ran each system with. When the labeling
+    input does not set 'systems_charge'/'systems_total_spin', those values are used instead of the previous labeling
+    or the defaults, so the explored and labeled structures stay consistent. When it does set them, a warning is
+    issued for every system whose value differs from the exploration.
+
+    Parameters
+    ----------
+    merged_input_json : dict
+        The merged labeling input JSON, with 'systems_charge'/'systems_total_spin' as one value per system.
+    user_input_json : dict
+        The labeling input JSON provided by the user.
+    exploration_json : dict
+        The exploration control JSON of the current iteration.
+    main_json : dict
+        The main JSON.
+
+    Returns
+    -------
+    dict
+        The updated merged input JSON.
+    """
+    arcann_logger = logging.getLogger("ArcaNN")
+
+    for control_key, input_key in [
+        ("charge", "systems_charge"),
+        ("total_spin", "systems_total_spin"),
+    ]:
+        user_set = user_input_json.get(input_key) not in (None, "default")
+        for system_auto_index, system_auto in enumerate(main_json["systems_auto"]):
+            explored = (
+                exploration_json.get("systems_auto", {})
+                .get(system_auto, {})
+                .get(control_key)
+            )
+            if explored is None:
+                continue
+            if not user_set:
+                merged_input_json[input_key][system_auto_index] = explored
+            elif merged_input_json[input_key][system_auto_index] != explored:
+                arcann_logger.warning(
+                    f"{control_key} of '{system_auto}' for the labeling "
+                    f"({merged_input_json[input_key][system_auto_index]}) differs from the exploration ({explored}): "
+                    "the labeled structures do not match the explored ones."
+                )
+
+    return merged_input_json

@@ -83,7 +83,7 @@ pair_coeff      * * _R_MODEL_FILES_ _R_ATOM_LABELS_
 3. the previous iteration's exploration;
 4. the defaults, charge `0` and multiplicity `1`, with a warning.
 
-On the first iteration no labeling has been done yet, so set them in the exploration `input.json` for any charged or open-shell system. The values used are stored in `control/exploration_XXX.json`. ArcaNN warns when they differ from the previous labeling, when the `charge`/`spin` written directly in the `pair_style` line (instead of the placeholders) differ from them, and when the line has no `charge`/`spin` at all (LAMMPS then uses 0 and 1).
+On the first iteration no labeling has been done yet, so set them in the exploration `input.json` for any charged or open-shell system; the labeling of the same iteration then uses them unless its own input sets `"systems_charge"`/`"systems_total_spin"`, so they carry over to the next iterations. The values used are stored in `control/exploration_XXX.json`. ArcaNN warns when they differ from the previous labeling, when the `charge`/`spin` written directly in the `pair_style` line (instead of the placeholders) differ from them or are LAMMPS variables it cannot check, and when the line has no `charge`/`spin` at all (LAMMPS then uses 0 and 1). Swapped placeholders (`charge _R_TOTAL_SPIN_`) are an error. The `pair_style` line may be continued over several lines with `&`.
 
 A few limits of the pair style itself (see the symmetrix README for details):
 

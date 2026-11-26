@@ -314,6 +314,36 @@ class LAMMPSInputHandler:
         """
         return self._lmp_input.read_text()
 
+    @staticmethod
+    def _logical_lines(text: str) -> list[str]:
+        """
+        Split a LAMMPS input into commands: comments removed, lines ending with '&' joined to the next one.
+
+        Parameters
+        ----------
+        text : str
+            The LAMMPS input text.
+
+        Returns
+        -------
+        list of str
+            The non-empty commands, with single spaces between the words.
+        """
+        # As LAMMPS: a line whose last printable character is '&' continues on the next one,
+        # comments ('#' to the end of the command) are removed after joining
+        commands, current = [], []
+        for line in text.splitlines() + [""]:
+            line = line.rstrip()
+            if line.endswith("&"):
+                current.append(line[:-1])
+                continue
+            current.append(line)
+            command = " ".join(" ".join(current).split("#")[0].split())
+            if command:
+                commands.append(command)
+            current = []
+        return commands
+
     @catch_errors_decorator
     def _parse_metadata(self) -> None:
         """
@@ -347,9 +377,9 @@ class LAMMPSInputHandler:
         # Keep the user's pair_style/pair_coeff lines verbatim (options included), they are reused
         # as-is in the reruns of the other committee models, only the model file changes
         self._pair_lines = [
-            line.split("#")[0].strip()
-            for line in self._raw_text.splitlines()
-            if re.match(r"^\s*pair_(style|coeff)\s", line)
+            line
+            for line in self._logical_lines(self._raw_text)
+            if re.match(r"pair_(style|coeff)\s", line)
         ]
         if self._lmp_pair != LAMMPSPair.DEEPMD and not any(
             "_R_MODEL_FILES_" in line for line in self._pair_lines

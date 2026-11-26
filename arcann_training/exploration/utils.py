@@ -981,6 +981,7 @@ POLAR_DEFAULT_CHARGE_SPIN = {"charge": 0, "total_spin": 1}
 def get_system_charge_spin(
     system_auto: str,
     system_auto_index: int,
+    system_count: int,
     user_input_json: Dict,
     previous_labeling_json: Dict,
     previous_exploration_json: Dict,
@@ -998,6 +999,8 @@ def get_system_charge_spin(
         The name of the system.
     system_auto_index : int
         The index of the system in 'systems_auto'.
+    system_count : int
+        The number of systems in 'systems_auto'.
     user_input_json : dict
         The exploration input JSON provided by the user.
     previous_labeling_json : dict
@@ -1015,7 +1018,7 @@ def get_system_charge_spin(
     TypeError
         If a value from the exploration input is not an integer.
     ValueError
-        If the exploration input list has no value for this system.
+        If the exploration input list does not have one value per system.
     """
     arcann_logger = logging.getLogger("ArcaNN")
 
@@ -1032,7 +1035,7 @@ def get_system_charge_spin(
         user_value = user_input_json.get(input_key)
 
         if user_value is not None and user_value != "default":
-            if isinstance(user_value, List) and system_auto_index >= len(user_value):
+            if isinstance(user_value, List) and len(user_value) != system_count:
                 error_msg = (
                     f"{input_key}: Size mismatch: there must be one value per system."
                 )
@@ -1069,3 +1072,65 @@ def get_system_charge_spin(
         values[control_key] = int(value)
 
     return values
+
+
+def check_polar_pair_options(
+    options: Dict[str, str],
+    charge_spin: Dict[str, int],
+    system_auto: str,
+    input_file: Union[str, Path],
+) -> None:
+    """
+    Check the 'charge'/'spin' values of a symmetrix/mace/polar pair_style against the system's charge/total_spin.
+
+    Each value must be its placeholder ('_R_CHARGE_'/'_R_TOTAL_SPIN_') or a number equal to the expected value.
+    A missing keyword, a LAMMPS variable or a different number only gives a warning.
+
+    Parameters
+    ----------
+    options : dict
+        The 'charge'/'spin' values written in the pair_style line (see LAMMPSInputHandler.polar_options).
+    charge_spin : dict
+        The expected 'charge' and 'total_spin' of the system.
+    system_auto : str
+        The name of the system.
+    input_file : str or Path
+        The LAMMPS input file, for the messages.
+
+    Raises
+    ------
+    ValueError
+        If a keyword is followed by the wrong placeholder (e.g. 'charge _R_TOTAL_SPIN_').
+    """
+    arcann_logger = logging.getLogger("ArcaNN")
+
+    for keyword, control_key, placeholder in [
+        ("charge", "charge", "_R_CHARGE_"),
+        ("spin", "total_spin", "_R_TOTAL_SPIN_"),
+    ]:
+        written = options.get(keyword)
+        expected = charge_spin[control_key]
+        if written is None:
+            arcann_logger.warning(
+                f"No '{keyword}' in the symmetrix/mace/polar pair_style, LAMMPS will use its default "
+                f"instead of {expected}: {input_file}"
+            )
+        elif written.startswith("_R_"):
+            if written != placeholder:
+                error_msg = f"'{keyword} {written}' in the symmetrix/mace/polar pair_style, use '{keyword} {placeholder}': {input_file}"
+                raise ValueError(error_msg)
+        elif written.startswith(("$", "v_")):
+            arcann_logger.warning(
+                f"'{keyword} {written}' in the symmetrix/mace/polar pair_style is a LAMMPS variable, ArcaNN cannot "
+                f"check it against the {control_key} of '{system_auto}' ({expected}): {input_file}"
+            )
+        else:
+            try:
+                matches = float(written) == expected
+            except ValueError:
+                matches = False
+            if not matches:
+                arcann_logger.warning(
+                    f"'{keyword} {written}' in the symmetrix/mace/polar pair_style differs from the "
+                    f"{control_key} of '{system_auto}' ({expected}): {input_file}"
+                )

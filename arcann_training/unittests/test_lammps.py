@@ -422,6 +422,26 @@ write_restart _R_RESTART_OUT_
             with self.subTest(pair=pair), self.assertRaises(ValueError):
                 self.make_handler(pair)
 
+    def test_continued_pair_style(self):
+        """
+        A pair_style continued with '&' must be kept whole in the reruns.
+        """
+        handler = self.make_handler(
+            "pair_style symmetrix/mace/polar charge _R_CHARGE_ &\n"
+            "    spin _R_TOTAL_SPIN_ &\n"
+            "    mesh 0.5\n"
+            "pair_coeff * * &\n"
+            "    _R_MODEL_FILES_ _R_ATOM_LABELS_"
+        )
+        self.assertEqual(
+            handler.polar_options(), {"charge": "_R_CHARGE_", "spin": "_R_TOTAL_SPIN_"}
+        )
+        self.assertIn(
+            "pair_style symmetrix/mace/polar charge _R_CHARGE_ spin _R_TOTAL_SPIN_ mesh 0.5\n"
+            "pair_coeff * * m2.json H O\n",
+            self.rerun_part(handler),
+        )
+
     def test_polar_cuda(self):
         handler = self.make_handler(
             "pair_style symmetrix/mace/polar/cuda charge _R_CHARGE_ spin _R_TOTAL_SPIN_ grid local float32-mixed\n"
