@@ -69,7 +69,7 @@ Once you are satisfied with your exploration parameters (see example below) you 
 
 ## PolarMACE (experimental)
 
-**Warning: this implementation is experimental.** It relies on symmetrix's `symmetrix/mace/polar` pair style, which is itself experimental. PolarMACE has been run in LAMMPS with this pair style and only the setup described below, but ArcaNN's active-learning loop with it has seen little use so far. Check the generated inputs and the first exploration results carefully, and expect the behaviour described below to change in future versions.
+**Warning: this implementation is experimental.** It relies on symmetrix's `symmetrix/mace/polar` pair style, which is itself experimental. PolarMACE has been run in LAMMPS with this pair style and only the setup described below (tested by [Alfonso Ferretti](https://cpcv.chimie.ens.fr/people/ferretti-alfonso) (ENS)), but ArcaNN's active-learning loop with it has seen little use so far. Check the generated inputs and the first exploration results carefully, and expect the behaviour described below to change in future versions.
 
 PolarMACE models (e.g. MACE-POLAR-1) can be explored through the experimental `symmetrix/mace/polar` pair style of [symmetrix](https://github.com/wcwitt/symmetrix/blob/main/pair_symmetrix/README.md#mace-polar-models-experimental) (`symmetrix/mace/polar/kk`/`/cuda` are accepted too). The other pair styles cannot run them: `pair_style mliap` fails upstream with `KeyError: 'fermi_level'` ([ACEsuit/mace#1409](https://github.com/ACEsuit/mace/issues/1409)). ArcaNN enforces the match: if a PolarMACE model was detected during [Initialization](initialization.md), every LAMMPS input must use `symmetrix/mace/polar`, and that pair style is refused for any other model.
 
