@@ -391,7 +391,7 @@ def main(
                 "System auto list and system auto index do not match. PLEASE REPORT THIS BUG."
             )
             arcann_logger.error("Aborting...")
-            return
+            return 1
 
         system_master_job_file[0] = replace_substring_in_string_list(
             system_master_job_file[0],

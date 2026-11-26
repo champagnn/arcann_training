@@ -14,13 +14,15 @@ import argparse
 import importlib
 import logging
 import logging.config
+import sys
 from pathlib import Path
 
 # Local imports
 from arcann_training.common.logging import setup_logging
 
 
-def main():
+def main() -> int:
+    """Run one phase of a step, return the exit code (0 on success, 1 on error)."""
     # Parsing
     parser = argparse.ArgumentParser(description="Deepmd iterative program suite")
     parser.add_argument("step_name", type=str, help="Step name")
@@ -94,7 +96,7 @@ def main():
         arcann_logger.error(f"Invalid step. Valid steps are: {steps}")
         arcann_logger.error("Aborting...")
         exit_code = 1
-        exit(exit_code)
+        return exit_code
 
     elif phase_name not in valid_phases.get(step_name, []):
         arcann_logger.error(
@@ -102,7 +104,7 @@ def main():
         )
         arcann_logger.error("Aborting...")
         exit_code = 1
-        exit(exit_code)
+        return exit_code
 
     # Launch the module
     else:
@@ -132,8 +134,8 @@ def main():
     arcann_logger.info("-" * 88)
     arcann_logger.info("-" * 88)
 
-    del exit_code, step_name, phase_name
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

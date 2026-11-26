@@ -146,11 +146,13 @@ class MockTraining:
 
     @staticmethod
     def failed(process) -> bool:
-        """The CLI always exits with 0, an error is only reported in the log."""
-        return (
-            process.returncode != 0
-            or "encountered an error" in process.stdout + process.stderr
+        """A phase failed: non-zero exit code (the error is also reported in the log)."""
+        failed = process.returncode != 0
+        logged = "encountered an error" in process.stdout + process.stderr
+        assert failed == logged, (
+            f"exit code {process.returncode} but error logged: {logged}"
         )
+        return failed
 
     def control(self, name: str) -> dict:
         return json.loads((self.path / "control" / f"{name}.json").read_text())
