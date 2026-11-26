@@ -41,7 +41,7 @@ This file represent the configuration of the **system**, with the number of atom
 
 The order of the atoms in the `LMP` files **must** be identical for every **system** and **must** match the atom-type order defined in your training configuration file — the `"type_map"` keyword of the DeePMD-kit `dptrain_VERSION.json` file, or the corresponding element ordering in the MACE `mace_MACEVERSION.yml` file.
 
-If you train with MACE, note that the `pair_style` line inside each `SYSTEM.in` LAMMPS input file selects how the MACE model is evaluated during exploration. ArcaNN supports `pair_style mace`, `pair_style mliap`, and `pair_style symmetrix/mace` (the corresponding Kokkos/GPU variants are also accepted). Choose the one supported by your LAMMPS build; ArcaNN reads it automatically and prepares the matching model files.
+If you train with MACE, note that the `pair_style` line inside each `SYSTEM.in` LAMMPS input file selects how the MACE model is evaluated during exploration. ArcaNN supports `pair_style mace`, `pair_style mliap`, `pair_style symmetrix/mace`, and, for PolarMACE models, `pair_style symmetrix/mace/polar` (the corresponding Kokkos/GPU variants are also accepted). Choose the one supported by your LAMMPS build; ArcaNN reads it automatically and prepares the matching model files.
 
 - A `properties` file must be provided and named `properties.txt`.
 This file will be used by [atomsk](https://atomsk.univ-lille.fr/tutorial_properties.php). In the case you have several **systems** with different chemical composition, the properties file must be the same for all systems to ensure consistent type mapping.

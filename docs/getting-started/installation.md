@@ -71,6 +71,13 @@ pip install ".[symmetrix]"
 
 (For `symmetrix`, `pip`'s `--config-settings` flag can also be passed through if your build needs it.) Each extra pulls in `mace-torch` plus whatever additional package that `pair_style` requires.
 
+**PolarMACE with `pair_style symmetrix/mace/polar`** (experimental, see [Exploration](../usage/exploration.md#polarmace-experimental)) needs two more packages to convert the model, which no extra can install because PyPI does not allow git dependencies:
+
+```bash
+pip install "mace-torch>=0.3.16"
+pip install "git+https://github.com/WillBaldwin0/graph_electrostatics@66ef875"
+```
+
 **Where you need this installed** depends on how MACE models get converted to their LAMMPS-ready format:
 
 - If you run the `training compress` phase every iteration (recommended, and the default expectation — see [Training](../usage/training.md)), the conversion happens inside the submitted `Slurm` job, so you **do not** need these extras.

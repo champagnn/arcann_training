@@ -56,6 +56,7 @@ from arcann_training.exploration.utils import (
     create_models_list,
     generate_input_exploration_json,
     generate_starting_points,
+    get_system_charge_spin,
     get_system_exploration,
     update_system_nb_steps_factor,
 )
@@ -145,6 +146,14 @@ def main(
     else:
         arcann_logger.error("Run training first before the first exploration phase!")
         sys.exit(1)
+
+    # The previous labeling holds the per-system charge/total_spin (needed for PolarMACE)
+    if curr_iter > 1 and (control_path / f"labeling_{padded_prev_iter}.json").is_file():
+        previous_labeling_json = load_json_file(
+            control_path / f"labeling_{padded_prev_iter}.json"
+        )
+    else:
+        previous_labeling_json = {}
 
     arcann_logger.debug(f"previous_training_json: {previous_training_json}")
     arcann_logger.debug(f"previous_exploration_json: {previous_exploration_json}")
@@ -371,6 +380,51 @@ def main(
             arcann_logger.info(
                 f"LAMMPS pair_style identified: {lmp_input_handler.lmp_pair.value} -- {system_auto}"
             )
+
+            # PolarMACE models only run with the symmetrix polar pair_style, and vice versa
+            polar_mace = main_json.get("polar_mace", False)
+            if polar_mace and not lmp_input_handler.is_polar:
+                raise ValueError(
+                    f"PolarMACE model detected, but the LAMMPS input does not use 'pair_style symmetrix/mace/polar': {lmp_input_handler.input_file}"
+                )
+            if lmp_input_handler.is_polar and not polar_mace:
+                raise ValueError(
+                    f"'pair_style symmetrix/mace/polar' used in LAMMPS input, but the model is not a PolarMACE: {lmp_input_handler.input_file}"
+                )
+
+            if lmp_input_handler.is_polar:
+                charge_spin = get_system_charge_spin(
+                    system_auto,
+                    system_auto_index,
+                    user_input_json,
+                    previous_labeling_json,
+                    previous_exploration_json,
+                )
+                exploration_json["systems_auto"][system_auto].update(charge_spin)
+                input_replace_dict["_R_CHARGE_"] = str(charge_spin["charge"])
+                input_replace_dict["_R_TOTAL_SPIN_"] = str(charge_spin["total_spin"])
+                arcann_logger.info(
+                    f"PolarMACE charge: {charge_spin['charge']}, total spin: {charge_spin['total_spin']} -- {system_auto}"
+                )
+
+                # Values written directly in the pair_style line (instead of the placeholders)
+                for keyword, control_key in [
+                    ("charge", "charge"),
+                    ("spin", "total_spin"),
+                ]:
+                    written = lmp_input_handler.polar_options().get(keyword)
+                    if written is None:
+                        arcann_logger.warning(
+                            f"No '{keyword}' in the symmetrix/mace/polar pair_style, LAMMPS will use its default "
+                            f"instead of {charge_spin[control_key]}: {lmp_input_handler.input_file}"
+                        )
+                    elif not written.startswith("_R_") and written != str(
+                        charge_spin[control_key]
+                    ):
+                        arcann_logger.warning(
+                            f"'{keyword} {written}' in the symmetrix/mace/polar pair_style differs from the "
+                            f"{control_key} of '{system_auto}' ({charge_spin[control_key]}): {lmp_input_handler.input_file}"
+                        )
 
             plumed[0] = lmp_input_handler.has_plumed()
 

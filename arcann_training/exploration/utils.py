@@ -972,3 +972,100 @@ def update_system_nb_steps_factor(previous_json: Dict, system_auto_index: int) -
             * previous_json["systems_auto"][system_auto_index]["nb_steps"]
             * previous_json["systems_auto"][system_auto_index]["timestep_ps"]
         )
+
+
+# Fallback when no charge/total_spin is known for a system: neutral singlet (same as the labeling defaults)
+POLAR_DEFAULT_CHARGE_SPIN = {"charge": 0, "total_spin": 1}
+
+
+def get_system_charge_spin(
+    system_auto: str,
+    system_auto_index: int,
+    user_input_json: Dict,
+    previous_labeling_json: Dict,
+    previous_exploration_json: Dict,
+) -> Dict[str, int]:
+    """
+    Get the total charge and total spin (multiplicity) of a system for a PolarMACE exploration.
+
+    Each value is taken, by priority, from: the exploration input ('systems_charge'/'systems_total_spin',
+    one value per system), the previous labeling, the previous exploration, and finally the defaults
+    (charge 0, total spin 1) with a warning.
+
+    Parameters
+    ----------
+    system_auto : str
+        The name of the system.
+    system_auto_index : int
+        The index of the system in 'systems_auto'.
+    user_input_json : dict
+        The exploration input JSON provided by the user.
+    previous_labeling_json : dict
+        The labeling control JSON of the previous iteration (empty if none).
+    previous_exploration_json : dict
+        The exploration control JSON of the previous iteration (empty if none).
+
+    Returns
+    -------
+    dict
+        Mapping 'charge' and 'total_spin' to their integer value.
+
+    Raises
+    ------
+    TypeError
+        If a value from the exploration input is not an integer.
+    ValueError
+        If the exploration input list has no value for this system.
+    """
+    arcann_logger = logging.getLogger("ArcaNN")
+
+    values = {}
+    for control_key, input_key in [
+        ("charge", "systems_charge"),
+        ("total_spin", "systems_total_spin"),
+    ]:
+        labeling_value = (
+            previous_labeling_json.get("systems_auto", {})
+            .get(system_auto, {})
+            .get(control_key)
+        )
+        user_value = user_input_json.get(input_key)
+
+        if user_value is not None and user_value != "default":
+            if isinstance(user_value, List) and system_auto_index >= len(user_value):
+                error_msg = (
+                    f"{input_key}: Size mismatch: there must be one value per system."
+                )
+                raise ValueError(error_msg)
+            value = (
+                user_value[system_auto_index]
+                if isinstance(user_value, List)
+                else user_value
+            )
+            if isinstance(value, bool) or not isinstance(value, int):
+                error_msg = f"'{input_key}' must be an integer or a list of integers (one per system), got: {user_value}"
+                raise TypeError(error_msg)
+        elif labeling_value is not None:
+            value = labeling_value
+        elif (
+            previous_exploration_json.get("systems_auto", {})
+            .get(system_auto, {})
+            .get(control_key)
+            is not None
+        ):
+            value = previous_exploration_json["systems_auto"][system_auto][control_key]
+        else:
+            value = POLAR_DEFAULT_CHARGE_SPIN[control_key]
+            arcann_logger.warning(
+                f"No {control_key} known for '{system_auto}' (no exploration input '{input_key}', no previous "
+                f"labeling or exploration), using {value}. Set '{input_key}' in the exploration input if it is wrong."
+            )
+
+        if labeling_value is not None and value != labeling_value:
+            arcann_logger.warning(
+                f"{control_key} of '{system_auto}' for the exploration ({value}) differs from the previous "
+                f"labeling ({labeling_value}): the explored structures do not match the labeled ones."
+            )
+        values[control_key] = int(value)
+
+    return values

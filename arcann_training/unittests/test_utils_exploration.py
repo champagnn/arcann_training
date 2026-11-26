@@ -33,6 +33,7 @@ import numpy as np
 from arcann_training.exploration.utils import (
     create_models_list,
     get_last_frame_number,
+    get_system_charge_spin,
     update_system_nb_steps_factor,
 )
 
@@ -191,6 +192,51 @@ class TestUpdateSystemNbStepsFactor(unittest.TestCase):
         self.assertEqual(update_system_nb_steps_factor(prevexploration_json, 0), 200)
         prevexploration_json["systems_auto"][0]["candidates_count"] = 20
         self.assertEqual(update_system_nb_steps_factor(prevexploration_json, 0), 100)
+
+
+class TestGetSystemChargeSpin(unittest.TestCase):
+    """
+    Test case for the 'get_system_charge_spin' function.
+    """
+
+    labeling = {"systems_auto": {"SYS1": {"charge": -1, "total_spin": 2}}}
+    exploration = {"systems_auto": {"SYS1": {"charge": 1, "total_spin": 3}}}
+
+    def test_user_input_first(self):
+        with self.assertLogs("ArcaNN", level="WARNING") as logs:
+            result = get_system_charge_spin(
+                "SYS1",
+                0,
+                {"systems_charge": [-1, 0], "systems_total_spin": 1},
+                self.labeling,
+                self.exploration,
+            )
+        self.assertEqual(result, {"charge": -1, "total_spin": 1})
+        # total_spin differs from the previous labeling
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("total_spin", logs.output[0])
+
+    def test_labeling_before_exploration(self):
+        result = get_system_charge_spin("SYS1", 0, {}, self.labeling, self.exploration)
+        self.assertEqual(result, {"charge": -1, "total_spin": 2})
+
+    def test_previous_exploration(self):
+        result = get_system_charge_spin(
+            "SYS1", 0, {"systems_charge": "default"}, {}, self.exploration
+        )
+        self.assertEqual(result, {"charge": 1, "total_spin": 3})
+
+    def test_default_with_warning(self):
+        with self.assertLogs("ArcaNN", level="WARNING") as logs:
+            result = get_system_charge_spin("SYS2", 1, {}, self.labeling, {})
+        self.assertEqual(result, {"charge": 0, "total_spin": 1})
+        self.assertEqual(len(logs.output), 2)
+
+    def test_invalid_user_input(self):
+        with self.assertRaises(TypeError):
+            get_system_charge_spin("SYS1", 0, {"systems_charge": [1.5]}, {}, {})
+        with self.assertRaises(ValueError):
+            get_system_charge_spin("SYS1", 1, {"systems_charge": [1]}, {}, {})
 
 
 if __name__ == "__main__":
